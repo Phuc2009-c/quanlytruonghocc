@@ -132,30 +132,128 @@ graph LR
 
 ---
 
-#### 📌 SƠ ĐỒ 2: LUỒNG BÁO ỐM & ĐIỀU CHUYỂN DẠY THAY TỨC THÌ (AI DISPATCH)
-*(Xử lý sự cố trong 60 giây khi giáo viên vùng cao gặp đường sạt lở hoặc ốm đột xuất)*
+#### 📌 SƠ ĐỒ BƠI (SWIMLANE): LUỒNG LOGIC TƯƠNG TÁC XUYÊN SUỐT CÁC TÀI KHOẢN
+
+Sơ đồ phân làn dưới đây mô tả chính xác **ai làm gì, dữ liệu đi về đâu và chuyển trạng thái như thế nào** trong một ngày làm việc:
 
 ```mermaid
-graph TD
-    %% Khối phát sinh sự cố
-    GV_Nghi["<b>👨‍🏫 1. GIÁO VIÊN NGHỈ ĐỘT XUẤT</b><br/>Bấm 'Báo ốm' trên điện thoại lúc 07:00"]
-    --> AI_Engine["<b>🤖 2. ĐỘNG CƠ AI & MA TRẬN KM</b><br/>• Quét giáo viên cùng môn Toán có tiết trống<br/>• Tính khoảng cách: Trung tâm ➔ Sơn Hà (3.5km)"]
+sequenceDiagram
+    autonumber
+    actor GV as 👨‍🏫 1. GIÁO VIÊN (Lớp học)
+    actor TO as 🧑‍🏫 2. TỔ TRƯỞNG (Bộ môn)
+    actor PHT as 👔 3. PHÓ HT (Phân hiệu)
+    actor HT as 🎓 4. HIỆU TRƯỞNG (Trường)
+    actor KT as 💼 5. KẾ TOÁN (Bán trú)
+    actor HS as 👨‍👩‍👧 6. PHỤ HUYNH / HỌC SINH
 
-    AI_Engine --> DeXuat["<b>📋 3. PHƯƠNG ÁN TỐI ƯU NHẤT</b><br/>Đề xuất GV Nguyễn Văn B (đang trống tiết)"]
-    
-    DeXuat --> BGH["<b>✍️ 4. HIỆU TRƯỞNG PHÊ DUYỆT</b><br/>Bấm duyệt trong 1 click trên Dashboard"]
+    Note over GV,PHT: CHU TRÌNH 1: ĐIỂM DANH & BÁN TRÚ ĐẦU GIỜ (06:45 - 07:30)
+    GV->>PHT: (1) Điểm danh điện tử ➔ Chốt sĩ số & báo số suất ăn trưa
+    PHT->>KT: (2) Xác nhận sĩ số phân hiệu ➔ Chuyển số liệu về Kế toán
+    KT->>KT: (3) Tổng hợp 6 điểm trường ➔ Xuất phiếu báo bếp nấu cơm (07:30)
+    KT->>HT: (4) Đẩy báo cáo tổng hợp chuyên cần & bán trú lên Dashboard
 
-    BGH -->|"Cập nhật tức thì"| TKB["<b>📅 5. THỜI KHÓA BIỂU ĐIỆN TỬ</b><br/>Tự động đổi tên giáo viên phụ trách"]
-    BGH -->|"Bắn thông báo SMS/App"| GV_Thay["<b>📲 6. GIÁO VIÊN DẠY THAY</b><br/>Nhận thông báo và lên lớp đúng giờ"]
+    Note over GV,HS: CHU TRÌNH 2: HỌC VỤ & KHÓA SỔ HỌC BẠ 6 CẤP
+    GV->>TO: (5) Nhập điểm nháp (DRAFT) ➔ Rà soát & Bấm "Nộp bảng điểm" (SUBMITTED)
+    TO->>PHT: (6) Thẩm định ma trận đề thi ➔ Ký duyệt tổ (CAMPUS_CONFIRMED)
+    PHT->>HT: (7) Rà soát phổ điểm phân hiệu ➔ Ký duyệt cơ sở (VP_REVIEWED)
+    HT->>HT: (8) Ký duyệt toàn trường (PRINCIPAL_APPROVED) ➔ Kích hoạt KHÓA CỨNG (LOCKED)
+    HT->>HS: (9) Mở cổng Sổ liên lạc điện tử ➔ Phụ huynh & Học sinh tra cứu
 
-    %% Màu sắc
-    style GV_Nghi fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
-    style AI_Engine fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
-    style DeXuat fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
-    style BGH fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
-    style TKB fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#075985
-    style GV_Thay fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
+    Note over GV,HT: CHU TRÌNH 3: XỬ LÝ KHỦNG HOẢNG & ĐIỀU PHỐI DẠY THAY
+    GV->>PHT: (10) Báo nghỉ đột xuất tiết 2 (đường đèo sạt lở)
+    PHT->>HT: (11) AI gợi ý GV dạy thay theo ma trận Km ➔ Trình Hiệu trưởng
+    HT->>GV: (12) Hiệu trưởng bấm duyệt 1-click ➔ Lệnh điều động gửi tới GV dạy thay
 ```
+
+---
+
+### 📋 3.2. BÓC TÁCH CHI TIẾT LOGIC HOẠT ĐỘNG CỦA TỪNG VAI TRÒ TÀI KHOẢN
+
+Dưới đây là bảng phân tích kỹ thuật chi tiết về **Dữ liệu Đầu vào (Inputs) ➔ Thuật toán Xử lý (Processing Logic) ➔ Kết quả Đầu ra & Chốt chặn Bảo mật (Outputs & Guardrails)** của từng loại tài khoản:
+
+#### 1. Tài Khoản Giáo Viên (`TEACHER` / `HOMEROOM_TEACHER`)
+* **Màn hình sử dụng**: Mobile Web / Tablet tại `/teacher/attendance`, `/teacher/gradebook`, `/teacher/substitute`.
+* **Logic Điểm danh**:
+  - Dữ liệu đầu vào: Danh sách học sinh của lớp phụ trách (`classId`).
+  - Xử lý: Hỗ trợ lưu tạm thời vào `IndexedDB / LocalStorage` khi mất kết nối mạng. Tự động đồng bộ ngầm (Background Sync) lên CSDL Supabase khi có sóng 4G/Wifi.
+  - Chốt chặn: Sau **07:30 sáng**, bản ghi điểm danh tự động khóa sửa; mọi điều chỉnh bổ sung phải có sự đồng ý của Phó Hiệu trưởng.
+* **Logic Nhập Điểm**:
+  - Nhập điểm kiểm tra thang 10 (`ORAL`, `FIFTEEN_MIN`, `MIDTERM`, `FINAL`).
+  - Trạng thái ban đầu: `DRAFT` (Giáo viên tự do sửa đổi).
+  - Khi bấm **"Nộp bảng điểm"**: Chuyển trạng thái sang `SUBMITTED`, giáo viên mất quyền sửa đổi trực tiếp.
+  - Khi bản ghi chuyển sang `LOCKED`: Bị khóa cứng hoàn toàn.
+* **Logic Trợ Lý Nhận Xét Học Bạ AI**:
+  - Giáo viên bấm "Gợi ý nhận xét": Hệ thống gửi điểm số và chỉ số chuyên cần sang Gemini API.
+  - Prompt được gài sẵn khung chuẩn mực theo **Thông tư 22/2021/TT-BGDĐT** (câu từ động viên, khích lệ, bảo đảm an toàn tâm lý học sinh). Giáo viên xem xét, biên tập lại trước khi lưu.
+
+---
+
+#### 2. Tài Khoản Tổ Trưởng Chuyên Môn (`SUBJECT_HEAD`)
+* **Màn hình sử dụng**: `/admin/academic/subject-review`.
+* **Logic Thẩm định Cấp Tổ**:
+  - Hệ thống gọi hàm `assertSubjectGroupAccess()`: Tổ trưởng môn Toán chỉ được thẩm định các giáo viên thuộc tổ Toán, không thể can thiệp sang tổ Ngữ văn hay Tiếng Anh.
+  - Kiểm tra ma trận đề thi và phổ điểm của các lớp trong tổ.
+  - Hành động: Bấm **"Ký xác nhận chuyên môn"** ➔ CSDL cập nhật trạng thái từ `SUBMITTED` sang `CAMPUS_CONFIRMED`.
+
+---
+
+#### 3. Tài Khoản Phó Hiệu Trưởng Phân Hiệu (`VICE_PRINCIPAL`)
+* **Màn hình sử dụng**: `/admin/campus-dashboard`, `/admin/attendance-monitor`.
+* **Logic Cô Lập Phân Hiệu (Campus Scoping Guard)**:
+  - Tài khoản bị gán cố định với `campusId` (ví dụ `cmp_sonha1` cho điểm Sơn Hà 1).
+  - Mọi thao tác truy vấn CSDL đều bị ép điều kiện: `where: { campusId: ctx.campusId }`.
+  - **Chốt chặn an toàn**: Nếu Phó HT Sơn Hà 1 cố tình truy cập vào URL của điểm An Tiến, hàm `assertCampusAccess()` lập tức ném lỗi **HTTP 403 Forbidden**.
+* **Logic Thẩm Định Chuyên Cần & Nguy Cơ Bỏ Học**:
+  - Hệ thống tự động gắn cờ đỏ cảnh báo học sinh vắng từ 3 buổi liên tiếp không phép (nguy cơ bỏ học vào mùa gặt hoặc sương muối).
+  - Phó Hiệu trưởng giao việc trực tiếp cho GVCN lớp phải đến tận nhà học sinh vận động.
+* **Logic Ký Duyệt Học Vụ Cấp Cơ Sở**:
+  - Rà soát toàn bộ điểm số của các lớp thuộc phân hiệu ➔ Ký duyệt chuyển trạng thái từ `CAMPUS_CONFIRMED` sang `VP_REVIEWED`.
+
+---
+
+#### 4. Tài Khoản Hiệu Trưởng (`ADMIN`)
+* **Màn hình sử dụng**: `/admin/dashboard`, `/admin/principal-ai`, `/admin/daily-summary`, `/admin/data-lock`.
+* **Logic Điều Hành Toàn Cục (Global Executive)**:
+  - Cờ `isPrincipal = true`: Nhận dữ liệu tổng hợp của toàn bộ 6 phân hiệu.
+  - Xem Dashboard 3 pha thời gian thực: Tỷ lệ chuyên cần toàn trường, danh sách giáo viên vắng, sự cố cơ sở vật chất.
+* **Logic Trợ Lý AI Chiến Lược & Decision Gate**:
+  - Đặt câu hỏi điều hành ➔ AI phân tích CSDL và đưa ra đề xuất.
+  - Hàm `verifyAIGrounding()` đối soát chéo số liệu AI với Supabase:
+    - Nếu khớp: Mở nút **"Phê duyệt & Ký lưu"** (Xanh lá).
+    - Nếu AI bịa số liệu: **Khóa cứng nút lưu (Disabled 100%)**, ngăn chặn quyết định sai lầm.
+* **Logic Khóa Sổ & Mở Khóa Dữ Liệu**:
+  - Bấm ký duyệt toàn trường: Kích hoạt hàm `lockDataRecord()`, chuyển trạng thái sang `LOCKED`.
+  - Khi có đơn phúc khảo: Hiệu trưởng duyệt **Unlock Request** ➔ Mở khóa cho giáo viên sửa lại điểm ➔ Hệ thống ghi vết vĩnh viễn vào `AuditLog`.
+
+---
+
+#### 5. Tài Khoản Kế Toán & Quản Trị Bán Trú (`ADMIN` / `STAFF`)
+* **Màn hình sử dụng**: `/admin/boarding-management`, `/admin/policy-engine`.
+* **Logic Bán Trú**:
+  - 07:15 - 07:30 sáng: Hệ thống tự động gom số lượng học sinh đăng ký ăn trưa từ 6 điểm trường lẻ.
+  - Kết xuất bảng tổng hợp suất ăn và chi phí thực phẩm trong ngày, tự động in phiếu bàn giao cho nhà bếp.
+* **Logic Tính Phụ Cấp Bảo Lưu Dôi Dư Theo Nghị Định 178/2024 & NĐ 67/2025**:
+  - Hệ thống tính toán chênh lệch phụ cấp lãnh đạo của các cán bộ BGH dôi dư sau sáp nhập trường: $\Delta P = P_{\text{cũ}} - P_{\text{mới}}$.
+  - Thiết lập đồng hồ đếm ngược bảo lưu **đúng 36 tháng**, tự động xuất dự toán ngân sách hàng tháng cho Kế toán trình Kho bạc Nhà nước.
+
+---
+
+#### 6. Tài Khoản Học Sinh & Phụ Huynh (`STUDENT` / `PARENT`)
+* **Màn hình sử dụng**: `/student/portal`, `/student/gradebook`.
+* **Logic Tra Cứu Bảo Mật**:
+  - Học sinh chỉ xem được dữ liệu của chính mình (`where: { studentId: ctx.userId }`).
+  - **Điều kiện hiển thị điểm**: Bảng điểm chỉ mở cho học sinh tra cứu khi bản ghi đã đạt trạng thái `LOCKED` (đã qua đủ 5 vòng duyệt). Khi điểm còn ở dạng `DRAFT` hoặc `SUBMITTED`, hệ thống hiển thị thông báo: *"Bảng điểm đang trong quy trình thẩm định chuyên môn"*.
+  - Xem đồ thị tiến trình học tập OLS ($y = ax + b$) để biết mình đang ở quỹ đạo Tiến bộ, Sa sút hay Dao động.
+
+---
+
+#### 7. Tài Khoản Quản Lý Nhà Nước (`DEPARTMENT_ADMIN`, `DISTRICT_ADMIN`, `WARD_ADMIN`)
+* **Màn hình sử dụng**: `/department/dashboard`, `/district/dashboard`, `/ward/dashboard`.
+* **Logic Giám Sát Vĩ Mô (Read-Only Aggregate Scope)**:
+  - Toàn bộ là quyền Đọc (Read-only), không có quyền can thiệp vào quy trình học vụ của nhà trường.
+  - **Sở GD&ĐT (`DEPARTMENT_ADMIN`)**: Tự động lọc các trường thuộc `departmentId` phụ trách.
+  - **Phòng GD&ĐT (`DISTRICT_ADMIN`)**: Tự động lọc các trường thuộc `districtWardId` phụ trách.
+  - **UBND Xã (`WARD_ADMIN`)**: Hàm `getWardAllowedCampusIds()` truy vấn bảng quan hệ địa lý `CampusWardMap` để hiển thị thống kê học sinh và bán trú của các điểm trường đóng trên địa bàn xã.
 
 ---
 
