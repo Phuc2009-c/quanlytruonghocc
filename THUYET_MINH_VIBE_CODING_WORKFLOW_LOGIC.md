@@ -268,14 +268,12 @@ Dưới đây là bảng phân tích kỹ thuật chi tiết về **Dữ liệu 
 
 ---
 
-#### 5. Tài Khoản Kế Toán & Quản Trị Bán Trú (`ADMIN` / `STAFF`)
-* **Màn hình sử dụng**: `/admin/boarding-management`, `/admin/policy-engine`.
-* **Logic Bán Trú**:
-  - 07:15 - 07:30 sáng: Hệ thống tự động gom số lượng học sinh đăng ký ăn trưa từ 6 điểm trường lẻ.
-  - Kết xuất bảng tổng hợp suất ăn và chi phí thực phẩm trong ngày, tự động in phiếu bàn giao cho nhà bếp.
+#### 5. Tài Khoản Kế Toán & Quản Trị Nhân Sự (`STAFF` / `ACCOUNTANT`)
+* **Màn hình sử dụng**: `/admin/policy-engine`, `/admin/finance`.
 * **Logic Tính Phụ Cấp Bảo Lưu Dôi Dư Theo Nghị Định 178/2024 & NĐ 67/2025**:
-  - Hệ thống tính toán chênh lệch phụ cấp lãnh đạo của các cán bộ BGH dôi dư sau sáp nhập trường: $\Delta P = P_{\text{cũ}} - P_{\text{mới}}$.
-  - Thiết lập đồng hồ đếm ngược bảo lưu **đúng 36 tháng**, tự động xuất dự toán ngân sách hàng tháng cho Kế toán trình Kho bạc Nhà nước.
+  - Dữ liệu đầu vào: Danh sách cán bộ lãnh đạo chuyển đổi vị trí sau sáp nhập trường theo Nghị quyết 37/2026/NQ-CP.
+  - Thuật toán xử lý: Tự động tính chênh lệch phụ cấp lãnh đạo $\Delta P = P_{\text{cũ}} - P_{\text{mới}}$.
+  - Thiết lập đồng hồ đếm ngược bảo lưu **đúng 36 tháng**, tự động xuất bảng dự toán ngân sách chi trả hàng tháng cho Kế toán trình Kho bạc Nhà nước.
 
 ---
 
@@ -294,49 +292,80 @@ Dưới đây là bảng phân tích kỹ thuật chi tiết về **Dữ liệu 
   - Toàn bộ là quyền Đọc (Read-only), không có quyền can thiệp vào quy trình học vụ của nhà trường.
   - **Sở GD&ĐT (`DEPARTMENT_ADMIN`)**: Tự động lọc các trường thuộc `departmentId` phụ trách.
   - **Phòng GD&ĐT (`DISTRICT_ADMIN`)**: Tự động lọc các trường thuộc `districtWardId` phụ trách.
-  - **UBND Xã (`WARD_ADMIN`)**: Hàm `getWardAllowedCampusIds()` truy vấn bảng quan hệ địa lý `CampusWardMap` để hiển thị thống kê học sinh và bán trú của các điểm trường đóng trên địa bàn xã.
+  - **UBND Xã (`WARD_ADMIN`)**: Hàm `getWardAllowedCampusIds()` truy vấn bảng quan hệ địa lý `CampusWardMap` để hiển thị thống kê học sinh của các điểm trường đóng trên địa bàn xã.
 
 ---
 
-#### 📌 SƠ ĐỒ 3: LUỒNG ĐIỂM DANH & BÁN TRÚ 3 PHA BUỔI SÁNG (06:45 - 08:00)
+#### 📌 SƠ ĐỒ 3: VÒNG ĐỜI XỬ LÝ YÊU CẦU DỮ LIỆU TỪ CLIENT ĐẾN CSDL (REQUEST LIFECYCLE & PIPELINE)
+*(Luồng logic kỹ thuật 6 bước khi một tài khoản gọi Server Action hoặc API)*
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  🌅 PHA 1: 06:45 - 07:15 (TẠI CÁC PHÂN HIỆU ĐIỂM LẺ)                          │
-│  • Giáo viên điểm danh tại lớp: Có mặt / Vắng phép / Vắng không phép          │
-│  • Chốt chính xác số lượng học sinh ăn trưa bán trú                          │
+│  🖥️ BƯỚC 1: CLIENT GỬI YÊU CẦU (CALL SERVER ACTION / API)                    │
+│  Tài khoản thực hiện thao tác (Nhập điểm, Xem báo cáo, Duyệt AI...)          │
 └──────────────────────────────────────┬───────────────────────────────────────┘
-                                       │ Đồng bộ thời gian thực về máy chủ
+                                       │ Gửi kèm Cookie Session JWT
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  🍲 PHA 2: 07:15 - 07:30 (TẠI VĂN PHÒNG KẾ TOÁN & BẾP BÁN TRÚ)                │
-│  • Phó Hiệu trưởng kiểm tra, ký xác nhận sĩ số phân hiệu                     │
-│  • Hệ thống tự động gom dữ liệu cả 6 điểm trường lẻ                          │
-│  • Xuất phiếu báo suất ăn chính xác cho nhà bếp nấu cơm lúc 07:30             │
+│  🔑 BƯỚC 2: XÁC THỰC DANH TÍNH (AUTHENTICATION GATE)                         │
+│  • Hàm getTenantContext() giải mã Token JWT                                  │
+│  • Trích xuất: userId, role, schoolId, campusId, isApproved                  │
+│  • Nếu chưa đăng nhập / Token hết hạn ➔ Ném lỗi 401 Unauthorized             │
 └──────────────────────────────────────┬───────────────────────────────────────┘
-                                       │ Đẩy báo cáo tổng hợp lên BGH
+                                       │ Session hợp lệ
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  📊 PHA 3: 07:30 - 08:00 (BÀN LÀM VIỆC CỦA HIỆU TRƯỞNG)                       │
-│  • Hiệu trưởng mở Daily Summary Dashboard                                     │
-│  • Nắm bức tranh chuyên cần toàn trường (% đạt, điểm nóng sụt giảm sĩ số)    │
-│  • Chỉ đạo nóng các điểm trường có học sinh vắng bất thường                  │
+│  🛡️ BƯỚC 3: KIỂM SOÁT PHÂN QUYỀN & CÔ LẬP ĐIỂM TRƯỜNG (TENANT & CAMPUS SCOPE)│
+│  • isApproved === false ➔ Ép schoolId rỗng (unapproved-no-access-000)        │
+│  • VICE_PRINCIPAL ➔ Kiểm tra targetCampusId === session.campusId             │
+│    (Nếu cố tình xem điểm trường khác ➔ Ném lỗi HTTP 403 Forbidden)           │
+│  • SUPER_ADMIN ➔ Chặn truy cập Học bạ/Điểm số chi tiết (assertNotSuperAdmin) │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Vượt qua chốt chặn phân quyền
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  ⚙️ BƯỚC 4: THỰC THI THUẬT TOÁN NGHIỆP VỤ (BUSINESS LOGIC ENGINE)            │
+│  • Tính toán tiến trình học sinh: Chạy thuật toán Hồi quy OLS (0.02ms)       │
+│  • Xếp lịch dạy thay: Chạy thuật toán Quy hoạch ràng buộc CSP & Ma trận Km   │
+│  • Tư vấn AI: Chạy verifyAIGrounding() đối soát số liệu chống ảo giác        │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Thực thi lệnh CSDL
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🗄️ BƯỚC 5: GIAO DỊCH CƠ SỞ DỮ LIỆU (PRISMA TRANSACTION & ROW LEVEL FILTER) │
+│  • Ép bộ lọc WHERE campusId / schoolId vào câu lệnh SQL                      │
+│  • Kiểm tra trạng thái Khóa (DataLock): Nếu LOCKED ➔ Từ chối UPDATE/DELETE   │
+│  • Commit giao dịch xuống CSDL Supabase PostgreSQL Cloud                     │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Ghi vết kiểm toán tự động
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  📜 BƯỚC 6: NHẬT KÝ KIỂM TOÁN & PHẢN HỒI CLIENT (AUDIT LOG & RESPONSE)       │
+│  • Tự động ghi vết vĩnh viễn vào bảng AuditLog: User, IP, Timestamp, Diff   │
+│  • Trả về kết quả Type-Safe JSON an toàn cho Client hiển thị                 │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Arial' }}}%%
 graph TD
-    P1["<b>PHA 1 (06:45 - 07:15)</b><br/>Giáo viên điểm danh tại lớp ➔ Chốt suất ăn trưa"]
-    -->|"Đồng bộ thời gian thực"| P2["<b>PHA 2 (07:15 - 07:30)</b><br/>Phó HT & Kế toán gom số liệu 6 điểm ➔ Báo bếp bán trú"]
+    B1["<b>1. CLIENT REQUEST</b><br/>Người dùng gửi yêu cầu qua Server Action"]
+    -->|"Mang theo Token"| B2["<b>2. AUTHENTICATION GATE</b><br/>getTenantContext giải mã JWT ➔ Lấy Role & CampusId"]
     
-    P2 -->|"Xuất phiếu nấu cơm"| Bep["<b>🍲 Nhà bếp bán trú</b><br/>Nấu đúng số suất ăn"]
-    P2 -->|"Đẩy lên Dashboard"| P3["<b>PHA 3 (07:30 - 08:00)</b><br/>Hiệu trưởng xem tỷ lệ chuyên cần toàn trường"]
+    B2 -->|"Kiểm tra quyền"| B3["<b>3. TENANT & CAMPUS GUARD</b><br/>assertCampusAccess: Chặn 403 nếu truy cập sai điểm trường"]
+    
+    B3 -->|"Hợp lệ"| B4["<b>4. BUSINESS LOGIC ENGINE</b><br/>Chạy giải thuật OLS / CSP Xếp lịch / AI Grounding Verifier"]
+    
+    B4 -->|"Giao dịch an toàn"| B5["<b>5. PRISMA TRANSACTION</b><br/>Ép WHERE campusId ➔ Kiểm tra DataLock ➔ Commit DB"]
+    
+    B5 -->|"Ghi vết kiểm toán"| B6["<b>6. AUDIT LOG & RESPONSE</b><br/>Lưu AuditLog vĩnh viễn ➔ Trả JSON Type-safe về Client"]
 
-    style P1 fill:#eff6ff,stroke:#3b82f6,stroke-width:3px,color:#1e40af
-    style P2 fill:#fffbeb,stroke:#f59e0b,stroke-width:3px,color:#92400e
-    style P3 fill:#f0fdf4,stroke:#22c55e,stroke-width:3px,color:#166534
-    style Bep fill:#fee2e2,stroke:#ef4444,stroke-width:3px,color:#991b1b
+    style B1 fill:#eff6ff,stroke:#3b82f6,stroke-width:3px,color:#1e40af
+    style B2 fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#92400e
+    style B3 fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#991b1b
+    style B4 fill:#ede9fe,stroke:#7c3aed,stroke-width:3px,color:#5b21b6
+    style B5 fill:#dcfce7,stroke:#16a34a,stroke-width:3px,color:#166534
+    style B6 fill:#f0fdf4,stroke:#15803d,stroke-width:3px,color:#166534
 ```
 
 ---
