@@ -142,92 +142,223 @@ Dành riêng cho Hội đồng Giám khảo và Chuyên gia thẩm định tại
 
 ## 4. LOGIC FLOW: LUỒNG LOGIC KỸ THUẬT & KIẾN TRÚC AI CHUYÊN SÂU
 
-### 🛡️ Logic 1: Chốt Chặn Kiểm Định Chống Ảo Giác (Grounding Verifier & Decision Gate)
-* **Tệp nguồn cốt lõi**: [src/lib/ai/data-integrity.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/data-integrity.ts), [src/app/admin/principal-ai/page.tsx](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/principal-ai/page.tsx)
-* **Bản chất kỹ thuật**:
-  - Khi mô hình ngôn ngữ lớn (Gemini) sinh câu trả lời, câu trả lời **CHƯA ĐƯỢC PHÉP TRỞ THÀNH QUYẾT ĐỊNH CHÍNH THỨC**.
-  - Hệ thống gọi hàm `verifyAIGrounding(aiText, dbContext)`:
-    1. Sử dụng Regular Expressions để bóc tách toàn bộ:
-       - Các con số định lượng (ví dụ: `92%`, `15 học sinh`, `3 giáo viên`).
-       - Danh tính thực thể (Họ tên giáo viên, mã học sinh, tên điểm trường).
-    2. Đối chiếu từng phần tử với đối tượng `dbContext` được truy vấn trực tiếp từ Supabase PostgreSQL.
-    3. Đưa ra 1 trong 3 trạng thái nghiêm ngặt:
+Hệ thống được thiết kế dựa trên triết lý kỹ nghệ phần mềm hiện đại: **Phân tầng nghiêm ngặt (Separation of Concerns)**, **Toán học thực chứng bảo vệ AI (Mathematical Guardrails)** và **Không tin tưởng tuyệt đối vào đầu ra của LLM (Zero-Trust AI Output)**. Dưới đây là phân tích chi tiết 8 phân hệ logic kỹ thuật cốt lõi của dự án:
 
 ```
-┌────────────────────┬──────────────────────────────────┬─────────────────────────────┐
-│ TRẠNG THÁI KIỂM ĐỊNH│ Ý NGHĨA KỸ THUẬT                  │ HÀNH ĐỘNG CỦA HỆ THỐNG      │
-├────────────────────┼──────────────────────────────────┼─────────────────────────────┤
-│ 🟢 VERIFIED        │ Khớp 100% số liệu với CSDL      │ Mở nút "Phê duyệt & Ký lưu" │
-├────────────────────┼──────────────────────────────────┼─────────────────────────────┤
-│ 🟡 INSUFFICIENT    │ CSDL chưa có dữ liệu đối chiếu   │ Đổi nút sang Thẩm định tay, │
-│    _DATA           │ (ví dụ: AI nhận định thời tiết) │ yêu cầu BGH kiểm tra thực tế│
-├────────────────────┼──────────────────────────────────┼─────────────────────────────┤
-│ 🔴 HALLUCINATED    │ AI đưa ra số liệu sai lệch với   │ KHÓA CỨNG NÚT KÝ DUYỆT      │
-│                    │ thực tế CSDL                     │ (Disabled 100%), cấm lưu    │
-└────────────────────┴──────────────────────────────────┴─────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    KIẾN TRÚC LUỒNG DỮ LIỆU & LOGIC HỆ THỐNG                                    │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [1. TẦNG CƠ SỞ DỮ LIỆU]                                                                                         │
+│   Supabase PostgreSQL (82 Bảng Quan hệ: Users, Campuses, Timetable, Attendance, Scores, AiFeedback, AuditLog)  │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [2. TẦNG TRÍCH XUẤT & PHÂN QUYỀN (Campus Scoping)]                                                              │
+│   Hàm getTenantContext() ➔ Ép bộ lọc WHERE campusId (Cô lập dữ liệu điểm lẻ, chặn HTTP 403)                     │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [3. TẦNG TỔNG HỢP SNAPSHOT & TOÁN HỌC THỰC CHỨNG]                                                               │
+│   ├── Thuật toán Hồi quy Tuyến tính OLS (Phân tích tiến trình học sinh, tính a và RMS trong 0.02ms)             │
+│   └── Thuật toán Quy hoạch Ràng buộc CSP (Tối ưu dạy thay theo ma trận khoảng cách địa lý km)                  │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [4. TẦNG ĐỘNG CƠ BỘ NHỚ AI (AI Memory Engine)]                                                                 │
+│   Trích xuất AiFeedback ➔ Chuyển thành Khối Ràng buộc Phủ định (Negative Constraints) đưa vào System Prompt    │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [5. TẦNG SUY LUẬN MÔ HÌNH LỚN (LLM Inference - Gemini 2.5)]                                                     │
+│   Tư vấn quản trị chiến lược, soạn thảo báo cáo sư phạm dựa trên Context dữ liệu thật                          │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [6. CHỐT CHẶN KIỂM ĐỊNH CHỐNG ẢO GIÁC (Grounding & Decision Gate)]                                              │
+│   Hàm verifyAIGrounding() bóc tách số liệu % và thực thể đối soát chéo với DB Snapshot                          │
+│   ├── 🟢 VERIFIED (Khớp 100%)       ➔ MỞ NÚT "Phê duyệt & Ký lưu"                                              │
+│   ├── 🟡 INSUFFICIENT_DATA (Thiếu DB)➔ Cảnh báo Hổ phách, yêu cầu BGH ký tay thẩm định                          │
+│   └── 🔴 HALLUCINATED (Bịa đặt)     ➔ KHÓA CỨNG NÚT PHÊ DUYỆT (Disabled 100% cả Client & Server Action)        │
+│                                           │                                                                     │
+│                                           ▼                                                                     │
+│ [7. TẦNG KHÓA DỮ LIỆU BẤT BIẾN & KIỂM TOÁN (Data Locking & Audit Trail)]                                        │
+│   Quy trình 6 trạng thái ➔ Khóa cứng LOCKED (Cấm Update/Delete) ➔ Ghi vết vĩnh viễn vào AuditLog               │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 🧠 Logic 2: Vòng Lặp Bộ Nhớ Tự Sửa Sai (Closed-Loop School Memory)
-* **Tệp nguồn cốt lõi**: [src/lib/ai/ai-memory-engine.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/ai-memory-engine.ts), [src/lib/ai/ai-memory-format.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/ai-memory-format.ts)
-* **Nguyên lý hoạt động**:
-  1. Khi người dùng đánh giá câu trả lời của AI và chọn **"👎 Cần đính chính"**:
-     - Người dùng chọn danh mục sai sót (Mâu thuẫn thực địa, Sai lệch số liệu, Không đúng văn bản...).
-     - Người dùng nhập ghi chú thực tế (Ví dụ: *"Điểm trường Cốc Xâm mùa mưa lũ qua suối nước dâng, không thể cử giáo viên nữ đi coi thi buổi chiều"*).
-  2. Bản ghi này được lưu vĩnh viễn vào bảng `AiFeedback` trong PostgreSQL.
-  3. Ở tất cả các lần truy vấn tiếp theo, hàm `getRelevantSchoolMemories(schoolId, campusId)` sẽ tự động lấy các ghi chú này.
-  4. Hàm `formatAiMemoryPromptBlock()` chuyển đổi thành khối ràng buộc phủ định đưa vào đầu System Prompt:
+### 🛡️ Phân Hệ Logic 1: Chốt Chặn Kiểm Định Chống Ảo Giác (Grounding Verifier & Decision Gate)
+* **Tệp mã nguồn cốt lõi**: [src/lib/ai/data-integrity.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/data-integrity.ts), [src/app/admin/principal-ai/page.tsx](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/principal-ai/page.tsx), [src/app/admin/principal-ai/actions.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/principal-ai/actions.ts)
+* **Bản chất thuật toán kiểm định**:
+  1. **Bước 1 - Bóc tách Thực thể & Chỉ số (Extraction Engine)**:
+     - Quét câu trả lời của AI bằng biểu thức chính quy để trích xuất:
+       - Các tỷ lệ phần trăm: `/(\d+(?:\.\d+)?)\s*%/g` (ví dụ: `95.4%`, `88%`).
+       - Các chỉ số định lượng: `/(\d+)\s*(?:học sinh|em|giáo viên|thầy cô|tiết|lớp)/gi`.
+       - Tên các thực thể: Đối chiếu danh sách giáo viên và điểm trường có trong trường.
+  2. **Bước 2 - Lập Bản đồ Tham chiếu (DB Context Mapping)**:
+     - Lấy đối tượng `dbContext` được truy vấn trực tiếp từ Supabase ngay trước khi gọi AI.
+     - Xây dựng tập hợp các giá trị chân lý (Ground Truth Set $\mathcal{G}$).
+  3. **Bước 3 - Đo Độ Lệch & Tính Điểm Toàn Vẹn (Scoring & Deviation Check)**:
+     - Với mỗi chỉ số $v_{\text{ai}}$ do AI đưa ra, tìm giá trị tương ứng $v_{\text{db}} \in \mathcal{G}$.
+     - Nếu $|v_{\text{ai}} - v_{\text{db}}| > \epsilon$ (với sai số cho phép $\epsilon = 0.5\%$): Đánh dấu vi phạm sai lệch dữ liệu.
+  4. **Bước 4 - Phân loại Máy Trạng thái 3 Mức (3-State Machine)**:
+     - `VERIFIED`: 100% số liệu kiểm tra được đều khớp với CSDL. Tỷ lệ tự tin $\ge 95\%$.
+     - `INSUFFICIENT_DATA`: AI đưa ra các nhận định định tính (ví dụ: *"Thời tiết sương mù đèo dốc"*) mà CSDL học vụ không có trường dữ liệu này. Không có mâu thuẫn số học trực tiếp.
+     - `HALLUCINATED`: AI đưa ra con số mâu thuẫn trực tiếp với CSDL (ví dụ CSDL ghi nhận chuyên cần 85% nhưng AI báo 98%).
+  5. **Bước 5 - Chốt chặn 2 Tầng (Double-Tier Security Barrier)**:
+     - **Tầng Client**: Nút "Phê duyệt & Ký lưu" bị `disabled = true`, hiển thị thông báo lỗi màu đỏ đậm cảnh báo ảo giác.
+     - **Tầng Server Action**: Tại `actions.ts:saveDecision()`, máy chủ thực hiện xác thực lại độc lập. Nếu phát hiện cờ `HALLUCINATED`, hàm lập tức ném ra ngoại lệ:
+       ```typescript
+       if (integrityStatus === 'HALLUCINATED') {
+         throw new Error("BẢO MẬT: Quyết định bị chặn do phát hiện số liệu ảo giác không khớp CSDL.");
+       }
+       ```
 
-```text
-🧠 [BỘ NHỚ HỌC TẬP TỪ PHẢN HỒI BAN GIÁM HIỆU & GIÁO VIÊN TRONG QUÁ KHỨ]:
-LƯU Ý QUAN TRỌNG: Người dùng thực tế đã chỉ ra các sai sót và đính chính các điểm sau.
-AI TUYỆT ĐỐI KHÔNG lặp lại các nhận định sai lầm này:
-1. [REMOTE_POINT_UNFEASIBLE] Điểm Cốc Xâm mùa mưa lũ suối dâng, không cử GV nữ đi lại buổi chiều...
+---
+
+### 🧠 Phân Hệ Logic 2: Vòng Lặp Bộ Nhớ Học Tập AI Đóng (Closed-Loop School Memory)
+* **Tệp mã nguồn cốt lõi**: [src/lib/ai/ai-memory-engine.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/ai-memory-engine.ts), [src/lib/ai/ai-memory-format.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai/ai-memory-format.ts)
+* **Quy trình hoạt động khép kín (Feedback Loop)**:
+
+```mermaid
+graph LR
+    A[AI Đề xuất Phương án] --> B{BGH Thẩm định}
+    B -- "Thấy phương án bất khả thi" --> C[Bấm Đính chính 👎]
+    C --> D[Lưu vào bảng AiFeedback trên Supabase]
+    D --> E[Lần truy vấn tiếp theo]
+    E --> F[Hàm formatAiMemoryPromptBlock()]
+    F --> G[Tiêm Negative Constraint Block vào Prompt]
+    G --> H[AI loại bỏ lỗi cũ, tối ưu phương án mới]
+    H --> B
 ```
-* **Kết quả**: Mô hình AI không bao giờ phạm lại sai lầm cũ, tự động thích ứng với văn hóa và địa hình thực tế của từng ngôi trường.
+
+* **Chi tiết 5 danh mục đính chính chuẩn hóa (`FeedbackCategory`)**:
+  1. `REMOTE_POINT_UNFEASIBLE`: Khó khăn địa hình thực tế (đường đèo sạt lở, mùa mưa lũ ngập suối).
+  2. `POLICY_CONFLICT`: Mâu thuẫn với quy chế nội bộ hoặc quy định hiện hành.
+  3. `TIMETABLE_COLLISION`: Xung đột thời gian di chuyển thực tế của giáo viên.
+  4. `DATA_MISMATCH`: AI hiểu sai hoặc đối chiếu nhầm tên lớp/tên học sinh.
+  5. `PEDAGOGICAL_RISK`: Đề xuất vi phạm nguyên tắc sư phạm hoặc tâm lý học sinh.
+* **Cơ chế Tiêm Ràng Buộc Phủ Định (Negative Rule Prompting)**:
+  Hệ thống trích xuất các bản ghi đính chính theo `campusId` và đóng gói thành khối chỉ thị bắt buộc đưa lên đầu System Prompt của LLM:
+  ```text
+  🧠 [BỘ NHỚ HỌC TẬP TỪ PHẢN HỒI BAN GIÁM HIỆU & GIÁO VIÊN TRONG QUÁ KHỨ]:
+  LƯU Ý QUAN TRỌNG: Người dùng thực tế đã chỉ ra các sai sót và đính chính các điểm sau.
+  AI TUYỆT ĐỐI KHÔNG lặp lại các nhận định sai lầm này:
+  1. [REMOTE_POINT_UNFEASIBLE] Điểm An Tiến mùa mưa lũ không bố trí giáo viên trung tâm lên dạy bù tiết 1 sáng thứ 2 vì sương mù và nguy cơ sạt lở đèo.
+  ```
+  Nhờ cơ chế này, mô hình thông minh lên theo thời gian mà **không tốn một đồng chi phí fine-tuning** và **không bị hiện tượng quên thảm khốc (catastrophic forgetting)**.
 
 ---
 
-### 📈 Logic 3: Phân Định AI vs Toán Học Thực Chứng (Mô hình Hồi quy Tuyến tính OLS)
-* **Tệp nguồn cốt lõi**: [src/lib/student-journey/regression.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/student-journey/regression.ts)
-* **Triết lý**: Dự án **không dùng LLM để tính toán xu hướng học tập** vì LLM không phải là máy tính số học. Dự án sử dụng thuật toán **Bình phương Tối thiểu (Ordinary Least Squares - OLS)** chạy thuần toán học trên CPU máy chủ trong **0.02ms**:
-  $$\text{Độ dốc (Slope) } a = \frac{n\sum (x_i y_i) - \sum x_i \sum y_i}{n\sum x_i^2 - (\sum x_i)^2}$$
-  $$\text{Độ lệch chuẩn (Root Mean Square Error) } \text{RMS} = \sqrt{\frac{1}{n}\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$$
-* **Hệ thống tự động phân loại 4 quỹ đạo học tập**:
-  1. **Tiến bộ đều đặn (Improving)**: $a \ge +0.25$ và $\text{RMS} < 1.0$ ➔ Học sinh nỗ lực vươn lên.
-  2. **Sa sút liên tục (Declining - Nguy cơ cao)**: $a \le -0.25$ ➔ Kích hoạt quy trình can thiệp sư phạm ngay lập tức.
-  3. **Biến động bất thường (Volatile)**: $\text{RMS} \ge 1.2$ ➔ Điểm số dao động mạnh, dấu hiệu bất ổn tâm lý hoặc biến cố gia đình.
-  4. **Ổn định (Stable)**: $|a| < 0.25$ và $\text{RMS} < 0.8$.
-* **Vai trò của AI**: AI chỉ đóng vai trò nhận các nhãn toán học chính xác này và soạn thư thông báo, lời khuyên gửi cho phụ huynh và giáo viên chủ nhiệm.
+### 📈 Phân Hệ Logic 3: Thuật Toán Hồi Quy Tuyến Tính OLS Phân Tích Tiến Trình Học Sinh
+* **Tệp mã nguồn cốt lõi**: [src/lib/student-journey/regression.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/student-journey/regression.ts)
+* **Triết lý toán học**: Dự án **không dùng LLM để tính toán xu hướng học sinh**. Thay vào đó, toàn bộ phép tính dựa trên **Phương pháp Bình phương Cực tiểu (Ordinary Least Squares - OLS)** chạy trực tiếp trên máy chủ trong **0.02ms**.
+* **Công thức toán học giải tích**:
+  Cho tập hợp điểm số qua các kỳ đánh giá: $\{(x_1, y_1), (x_2, y_2), \dots, (x_n, y_n)\}$ với $x_i$ là số thứ tự kỳ học ($x_i = 1, 2, \dots, n$) và $y_i$ là điểm số quy đổi theo thang 10.
+  Phương trình đường hồi quy có dạng: $\hat{y} = ax + b$.
+  Trong đó, hệ số góc (độ dốc) $a$ và tung độ gốc $b$ được xác định chính xác theo công thức:
+  $$a = \frac{n\sum_{i=1}^{n} (x_i y_i) - \left(\sum_{i=1}^{n} x_i\right)\left(\sum_{i=1}^{n} y_i\right)}{n\sum_{i=1}^{n} x_i^2 - \left(\sum_{i=1}^{n} x_i\right)^2}$$
+  $$b = \bar{y} - a\bar{x} = \frac{\sum_{i=1}^{n} y_i - a\sum_{i=1}^{n} x_i}{n}$$
+  Độ biến động bất thường (Root Mean Square Error - RMS) đo lường độ phân tán quanh đường xu hướng:
+  $$\text{RMS} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$$
+* **Ma trận Phân loại Hành trình Sư phạm (Pedagogical Trajectory Matrix)**:
+
+| Quỹ đạo | Điều kiện Toán học | Ý nghĩa Sư phạm | Hành động Hệ thống |
+| :--- | :--- | :--- | :--- |
+| **Tiến bộ (Improving)** | $a \ge +0.25$ và $\text{RMS} < 1.0$ | Học sinh có bước tiến vững chắc qua từng kỳ | Đề xuất khen thưởng, giao bài tập nâng cao |
+| **Sa sút / Nguy cơ (Declining)** | $a \le -0.25$ | Học lực suy giảm liên tục, có nguy cơ lưu ban | Kích hoạt cảnh báo sớm, thông báo GVCN và phụ huynh |
+| **Bất ổn / Biến động (Volatile)** | $\text{RMS} \ge 1.2$ | Điểm số trồi sụt thất thường | Cảnh báo bất ổn tâm lý hoặc biến cố gia đình |
+| **Ổn định (Stable)** | $|a| < 0.25$ và $\text{RMS} < 0.8$ | Phong độ học tập duy trì đều đặn | Tiếp tục duy trì kế hoạch học tập hiện tại |
 
 ---
 
-### 🏢 Logic 4: Phân Quyền & Cô Lập Đa Phân Hiệu (Tenant Isolation & Campus Scoping)
-* **Tệp nguồn cốt lõi**: [src/lib/tenant.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/tenant.ts)
-* **Cơ chế bảo vệ dữ liệu**:
-  - Phiên làm việc (Session) của người dùng chứa mã `campusId` của phân hiệu họ công tác.
-  - Khi gọi hàm `getTenantContext()`:
-    - **Hiệu trưởng (`ADMIN`)**: Nhận cờ `isPrincipal = true`, được quyền đọc dữ liệu toàn cục của cả 6 điểm trường.
-    - **Phó Hiệu trưởng (`VICE_PRINCIPAL`) & Giáo viên (`TEACHER`)**: Nhận ngữ cảnh bị giới hạn chặt chẽ theo `campusId`.
-  - Mọi câu lệnh truy vấn CSDL đều bắt buộc kèm bộ lọc:
-    ```typescript
-    const whereClause = {
-      campusId: tenantCtx.campusId ? tenantCtx.campusId : undefined
+### 🗺️ Phân Hệ Logic 4: Thuật Toán Điều Phối Dạy Thay Tối Ưu Ràng Buộc & Khoảng Cách Địa Lý
+* **Tệp mã nguồn cốt lõi**: [src/lib/smart-timetable-engine.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/smart-timetable-engine.ts), [src/lib/ai-data-engine.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/ai-data-engine.ts)
+* **Mô hình Bài toán Thỏa mãn Ràng buộc (Constraint Satisfaction Problem - CSP)**:
+  - Khi có giáo viên nghỉ đột xuất tại một phân hiệu, hệ thống phải tìm ra giáo viên thay thế tối ưu bằng cách giải bài toán đa mục tiêu:
+    $$\min Z = w_1 \cdot D_{ij} + w_2 \cdot |\text{Load}_k - \overline{\text{Load}}| + w_3 \cdot P_{\text{transit}}$$
+* **Bộ Ràng buộc Cứng (Hard Constraints - Bắt buộc thỏa mãn 100%)**:
+  1. **Tính khả dụng (Availability)**: Giáo viên được chọn không có lịch dạy tiết đó trong Thời khóa biểu chính khóa.
+  2. **Chuẩn chuyên môn (Subject Competency)**: Giáo viên phải có chuyên môn phù hợp với môn học cần dạy thay.
+  3. **Định mức tiết (Workload Cap)**: Không vi phạm định mức tiết dạy tối đa/tuần theo Thông tư 28/2009/TT-BGDĐT.
+* **Bộ Ràng buộc Mềm & Ma trận Địa lý (Soft Constraints & Distance Matrix)**:
+  - Hệ thống nhúng ma trận khoảng cách km thực tế giữa các phân hiệu vùng cao:
+    - $\text{Dist}(\text{Trung tâm}, \text{Sơn Hà 1}) = 3.5\text{ km}$
+    - $\text{Dist}(\text{Trung tâm}, \text{Sơn Hà 2}) = 5.2\text{ km}$
+    - $\text{Dist}(\text{Trung tâm}, \text{Sơn Hải}) = 6.8\text{ km}$
+    - $\text{Dist}(\text{Trung tâm}, \text{An Tiến}) = 8.5\text{ km}$ (đèo dốc)
+  - **Thuật toán sắp xếp ưu tiên 4 bậc**:
+    1. Ưu tiên 1: Giáo viên đang có mặt tại chính phân hiệu có tiết trống.
+    2. Ưu tiên 2: Giáo viên ở phân hiệu lân cận có khoảng cách ngắn nhất ($< 4\text{ km}$).
+    3. Ưu tiên 3: Loại trừ hoàn toàn việc điều chuyển giáo viên có tiết dạy ở 2 điểm trường khác nhau trong cùng một buổi sáng hoặc chiều (tránh nguy cơ tai nạn giao thông trên đường đèo).
+
+---
+
+### 🏢 Phân Hệ Logic 5: Phân Quyền & Cô Lập Dữ Liệu Đa Điểm Trường (Campus Scoping)
+* **Tệp mã nguồn cốt lõi**: [src/lib/tenant.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/tenant.ts)
+* **Bản chất kiến trúc bảo mật Tenant Scoping**:
+  Hệ thống sử dụng mô hình **Shared Database, Scoped Rows** với cơ chế xác thực kép từ Session:
+  ```typescript
+  export async function getTenantContext(): Promise<TenantContext> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) throw new Error("Chưa xác thực");
+
+    const isPrincipal = session.user.role === 'ADMIN';
+    const campusId = isPrincipal ? undefined : session.user.campusId;
+
+    return {
+      userId: session.user.id,
+      role: session.user.role,
+      isPrincipal,
+      campusId, // Khóa chặt với điểm trường nếu là Phó HT hoặc Giáo viên
     };
-    ```
-  - Nếu một Phó Hiệu trưởng tại điểm Sơn Hà 1 cố tình thay đổi tham số URL để xem hoặc sửa điểm của học sinh tại điểm Sơn Hải, hàm `assertCampusAccess()` lập tức chặn đứng và ném ra mã lỗi **HTTP 403 Forbidden**.
+  }
+  ```
+* **Chống rò rỉ dữ liệu chéo (Cross-Campus Data Leak Prevention)**:
+  - Mọi hàm truy vấn dữ liệu học sinh, điểm danh, thời khóa biểu đều nhận `tenantCtx` làm tham số bắt buộc.
+  - Hàm `assertCampusAccess(requestedCampusId, tenantCtx)` kiểm tra:
+    - Nếu người dùng là Phó Hiệu trưởng điểm Sơn Hà 1 (`campusId = "sh1"`) mà cố tình gửi request với `campusId = "at"` (An Tiến):
+    - Hệ thống ngay lập tức ném ngoại lệ bảo mật và trả về mã lỗi **HTTP 403 Forbidden**.
 
 ---
 
-### 🔒 Logic 5: Quy Trình Phê Duyệt 6 Cấp & Khóa Dữ Liệu Tự Động (Data Locking)
-* **Tệp nguồn cốt lõi**: [src/app/admin/data-lock/actions.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/data-lock/actions.ts), [src/lib/audit-logger.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/audit-logger.ts)
-* **Quy trình 6 trạng thái**:
-  `DRAFT` (Bản nháp GV) ➔ `SUBMITTED` (Đã nộp) ➔ `CAMPUS_CONFIRMED` (Tổ trưởng xác nhận) ➔ `VP_REVIEWED` (Phó HT thẩm định) ➔ `PRINCIPAL_APPROVED` (Hiệu trưởng duyệt) ➔ `LOCKED` (Khóa cứng hệ thống).
-* **Tính bất biến (Immutability)**:
-  - Khi bản ghi đạt trạng thái `LOCKED`, cơ sở dữ liệu từ chối mọi thao tác `UPDATE` hoặc `DELETE`.
-  - Nếu cần chỉnh sửa số liệu sau khi khóa (ví dụ phúc khảo điểm), bắt buộc phải tạo phiếu **Yêu cầu mở khóa (Unlock Request)** nêu rõ nguyên nhân giải trình.
-  - Toàn bộ thao tác mở khóa, sửa điểm và khóa lại đều được ghi vết vĩnh viễn vào bảng `AuditLog` kèm IP, thời gian và chữ ký tài khoản.
+### 🔒 Phân Hệ Logic 6: Quy Trình Khóa Dữ Liệu 6 Cấp & Kiểm Toán Bất Biến (Data Locking)
+* **Tệp mã nguồn cốt lõi**: [src/app/admin/data-lock/actions.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/data-lock/actions.ts), [src/lib/audit-logger.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/audit-logger.ts)
+* **Máy trạng thái Phê duyệt 6 Cấp**:
+  ```
+  [1. DRAFT] ──(Giáo viên nộp)──> [2. SUBMITTED] ──(Tổ trưởng xác nhận)──> [3. CAMPUS_CONFIRMED]
+                                                                                   │
+  [6. LOCKED] <──(Khóa hệ thống)── [5. PRINCIPAL_APPROVED] <──(Phó HT duyệt)── [4. VP_REVIEWED]
+  ```
+* **Logic Khóa Bất Biến (Immutability Enforcement)**:
+  - Khi bản ghi chuyển sang `LOCKED`, cơ sở dữ liệu chặn đứng mọi lệnh sửa đổi (`UPDATE`, `DELETE`).
+  - **Quy trình Mở khóa (Unlock Request)**:
+    1. Người dùng bắt buộc phải tạo phiếu yêu cầu nêu rõ: *Lý do mở khóa, Người yêu cầu, Biên bản phúc khảo điểm*.
+    2. Chỉ duy nhất tài khoản Hiệu trưởng (`ADMIN`) mới có quyền bấm phê duyệt mở khóa.
+    3. Mọi hành động mở khóa, sửa điểm và khóa lại đều được ghi vết vĩnh viễn vào bảng `AuditLog` gồm: *Địa chỉ IP, Thời điểm Timestamp, Giá trị cũ (Old Value), Giá trị mới (New Value), Chữ ký số người duyệt*.
+
+---
+
+### 🏛️ Phân Hệ Logic 7: Quản Trị Chiến Lược & Tính Toán Chế Độ Pháp Lý Tự Động (NQ 37 & NĐ 178)
+* **Tệp mã nguồn cốt lõi**: [src/lib/nq37-engine.ts](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/lib/nq37-engine.ts)
+* **Logic Định Mức Nhân Sự Theo Nghị Quyết 37/2026/NQ-CP**:
+  - Khi sáp nhập các trường liên cấp, hệ thống tự động tính toán định mức biên chế quản lý:
+    - Mỗi trường chỉ có tối đa **01 Hiệu trưởng**.
+    - Số lượng Phó Hiệu trưởng tối đa: Phụ thuộc vào tổng số lớp học và số lượng điểm trường lẻ (Mỗi trường từ 5 điểm lẻ trở lên được bố trí thêm 01 Phó Hiệu trưởng phụ trách điểm trường).
+    - Tự động nhận diện danh sách cán bộ dôi dư cần bố trí chuyển đổi vị trí công tác.
+* **Logic Tính Bảo Lưu Phụ Cấp Theo Nghị Định 178/2024/NĐ-CP & Nghị Định 67/2025/NĐ-CP**:
+  - Tự động tính chênh lệch phụ cấp chức vụ lãnh đạo:
+    $$\Delta P = P_{\text{cũ}} - P_{\text{mới}}$$
+  - Thiết lập đồng hồ đếm ngược thời hạn bảo lưu **đúng 36 tháng** kể từ ngày quyết định điều chuyển có hiệu lực.
+  - Tự động kết xuất bảng dự toán tài chính ngân sách chi trả phụ cấp hàng tháng cho Kế toán trưởng, bảo đảm quyền lợi chính đáng cho cán bộ quản lý dôi dư.
+
+---
+
+### 🧪 Phân Hệ Logic 8: Phân Hệ Sandbox Kiểm Định Thực Địa Với 5 Kịch Bản Benchmark
+* **Tệp mã nguồn cốt lõi**: [src/app/admin/ai-assistant/testing-sandbox/TestingSandboxClient.tsx](file:///c:/Users/tungh/Desktop/quanlytruonghoc/src/app/admin/ai-assistant/testing-sandbox/TestingSandboxClient.tsx)
+* **Mục đích**: Cung cấp môi trường kiểm thử hộp cát (Sandbox) hoàn toàn độc lập cho Hội đồng Giám khảo thử thách hệ thống trước 5 bài toán thực tế gai góc nhất của trường vùng cao:
+  1. **Benchmark 1**: *Kiểm thử Bộ nhớ AI* - Đính chính đường đèo sạt lở và chứng minh AI không tái phạm lỗi cũ.
+  2. **Benchmark 2**: *Sắp xếp bộ máy BGH dôi dư* theo Nghị quyết 37 và bảo lưu phụ cấp Nghị định 178.
+  3. **Benchmark 3**: *Tối ưu hóa Thời khóa biểu liên phân hiệu* chống xung đột thời gian di chuyển.
+  4. **Benchmark 4**: *Dự báo chuyên cần mùa vụ* (tháng 10 gặt lúa) bằng mô hình OLS.
+  5. **Benchmark 5**: *Đánh giá tiêu chuẩn trường chuẩn quốc gia* theo Thông tư 15.
+* **Bộ Đánh Giá 4 Chiều (1 - 5 Sao)**: Giám khảo trực tiếp đánh giá trên giao diện và bấm nút xuất **Báo Cáo Nghiệm Thu Markdown** làm căn cứ chấm điểm chính thức.
 
 ---
 
