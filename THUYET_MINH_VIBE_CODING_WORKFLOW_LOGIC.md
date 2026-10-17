@@ -108,64 +108,105 @@ Nhằm giúp Ban Giám khảo nắm bắt toàn bộ hệ thống trong 10 giây
 
 ---
 
-#### 📌 SƠ ĐỒ 1: HÀNH TRÌNH DỮ LIỆU TỪ LỚP HỌC ĐẾN BÀN HIỆU TRƯỞNG
-*(Quy trình nộp điểm, phê duyệt và khóa học bạ 6 cấp - Không thể gian lận)*
+#### 📌 SƠ ĐỒ 1: QUY TRÌNH HỌC VỤ & KHÓA SỔ HỌC BẠ 6 CẤP (CHỮ TO RÕ RÀNG)
+*(Dữ liệu đi tuần tự qua 6 chốt chặn - Đóng băng CSDL chống sửa điểm)*
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  👨‍🏫 BƯỚC 1: GIÁO VIÊN BỘ MÔN (TEACHER)                                       │
+│  • Nhập điểm kiểm tra thang 10 vào sổ điểm điện tử                          │
+│  • Trạng thái CSDL: [ DRAFT ] (Giáo viên còn quyền sửa)                      │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Bấm "Nộp bảng điểm"
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🧑‍🏫 BƯỚC 2: TỔ TRƯỞNG CHUYÊN MÔN (SUBJECT_HEAD)                              │
+│  • Rà soát ma trận đề thi, kiểm tra phổ điểm đúng tiến độ                    │
+│  • Bấm duyệt ➔ Trạng thái CSDL: [ CAMPUS_CONFIRMED ]                         │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Chuyển lên Phó Hiệu trưởng
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  👔 BƯỚC 3: PHÓ HIỆU TRƯỞNG PHÂN HIỆU (VICE_PRINCIPAL)                       │
+│  • Thẩm định học vụ điểm lẻ (Khóa chặt theo campusId)                       │
+│  • Bấm duyệt ➔ Trạng thái CSDL: [ VP_REVIEWED ]                              │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Trình Hiệu trưởng phê duyệt
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🎓 BƯỚC 4: HIỆU TRƯỞNG NHÀ TRƯỜNG (ADMIN)                                   │
+│  • Ký duyệt toàn trường ➔ Trạng thái CSDL: [ PRINCIPAL_APPROVED ]            │
+│  • Kích hoạt tự động hàm lockDataRecord()                                    │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ ĐÓNG BĂNG VĨNH VIỄN CSDL
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🔒 BƯỚC 5: KHÓA CỨNG DỮ LIỆU (LOCKED)                                       │
+│  • Cấm tuyệt đối lệnh UPDATE / DELETE trong PostgreSQL                       │
+│  • Muốn sửa điểm phải làm Phiếu giải trình (Unlock Request) và ghi AuditLog  │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Công bố dữ liệu chính thức
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  👨‍👩‍👧 BƯỚC 6: HỌC SINH & PHỤ HUYNH (STUDENT / PARENT)                         │
+│  • Tra cứu Sổ liên lạc điện tử chính thức                                    │
+│  • Xem đồ thị phân tích tiến trình học tập OLS (Tiến bộ / Sa sút)            │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
 ```mermaid
-graph LR
-    %% Định nghĩa các bước
-    A["<b>1. GIÁO VIÊN</b><br/>Nhập điểm nháp (DRAFT)"] 
-    -->|"Bấm Nộp điểm"| B["<b>2. TỔ TRƯỞNG</b><br/>Thẩm định ma trận"]
-    -->|"Xác nhận cấp tổ"| C["<b>3. PHÓ HIỆU TRƯỞNG</b><br/>Duyệt học vụ điểm lẻ"]
-    -->|"Trình Hiệu trưởng"| D["<b>4. HIỆU TRƯỞNG</b><br/>Ký duyệt toàn trường"]
-    -->|"Kích hoạt Khóa cứng"| E["<b>5. KHÓA CSDL (LOCKED)</b><br/>🔒 Đóng băng vĩnh viễn"]
-    -->|"Công bố dữ liệu"| F["<b>6. PHỤ HUYNH & HỌC SINH</b><br/>Xem Sổ liên lạc điện tử"]
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Arial' }}}%%
+graph TD
+    A["<b>1. GIÁO VIÊN BỘ MÔN (TEACHER)</b><br/>Nhập điểm nháp ban đầu ➔ Trạng thái: DRAFT"]
+    -->|"Bấm Nộp điểm"| B["<b>2. TỔ TRƯỞNG CHUYÊN MÔN (SUBJECT_HEAD)</b><br/>Thẩm định ma trận đề ➔ Trạng thái: CAMPUS_CONFIRMED"]
+    
+    B -->|"Chuyển duyệt cơ sở"| C["<b>3. PHÓ HIỆU TRƯỞNG (VICE_PRINCIPAL)</b><br/>Thẩm định điểm phân hiệu ➔ Trạng thái: VP_REVIEWED"]
+    
+    C -->|"Trình duyệt toàn trường"| D["<b>4. HIỆU TRƯỞNG (ADMIN)</b><br/>Ký duyệt chính thức ➔ Trạng thái: PRINCIPAL_APPROVED"]
+    
+    D -->|"Kích hoạt Khóa cứng"| E["<b>5. KHÓA CỨNG CSDL (LOCKED)</b><br/>🔒 Đóng băng dữ liệu, cấm sửa/xóa tuyệt đối"]
+    
+    E -->|"Mở cổng tra cứu"| F["<b>6. HỌC SINH & PHỤ HUYNH</b><br/>Xem Sổ liên lạc điện tử & Đồ thị tiến trình OLS"]
 
-    %% Tô màu trực quan
-    style A fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1
-    style B fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309
-    style C fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309
-    style D fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d
-    style E fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#b91c1c
-    style F fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#7e22ce
+    style A fill:#e0f2fe,stroke:#0284c7,stroke-width:3px,color:#0369a1
+    style B fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#92400e
+    style C fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#92400e
+    style D fill:#dcfce7,stroke:#16a34a,stroke-width:3px,color:#166534
+    style E fill:#fee2e2,stroke:#dc2626,stroke-width:4px,color:#991b1b
+    style F fill:#f3e8ff,stroke:#9333ea,stroke-width:3px,color:#5b21b6
 ```
 
 ---
 
-#### 📌 SƠ ĐỒ BƠI (SWIMLANE): LUỒNG LOGIC TƯƠNG TÁC XUYÊN SUỐT CÁC TÀI KHOẢN
+#### 📌 SƠ ĐỒ 2: LUỒNG BÁO NGHỈ & ĐIỀU CHUYỂN DẠY THAY TỨC THÌ (AI DISPATCH)
 
-Sơ đồ phân làn dưới đây mô tả chính xác **ai làm gì, dữ liệu đi về đâu và chuyển trạng thái như thế nào** trong một ngày làm việc:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor GV as 👨‍🏫 1. GIÁO VIÊN (Lớp học)
-    actor TO as 🧑‍🏫 2. TỔ TRƯỞNG (Bộ môn)
-    actor PHT as 👔 3. PHÓ HT (Phân hiệu)
-    actor HT as 🎓 4. HIỆU TRƯỞNG (Trường)
-    actor KT as 💼 5. KẾ TOÁN (Bán trú)
-    actor HS as 👨‍👩‍👧 6. PHỤ HUYNH / HỌC SINH
-
-    Note over GV,PHT: CHU TRÌNH 1: ĐIỂM DANH & BÁN TRÚ ĐẦU GIỜ (06:45 - 07:30)
-    GV->>PHT: (1) Điểm danh điện tử ➔ Chốt sĩ số & báo số suất ăn trưa
-    PHT->>KT: (2) Xác nhận sĩ số phân hiệu ➔ Chuyển số liệu về Kế toán
-    KT->>KT: (3) Tổng hợp 6 điểm trường ➔ Xuất phiếu báo bếp nấu cơm (07:30)
-    KT->>HT: (4) Đẩy báo cáo tổng hợp chuyên cần & bán trú lên Dashboard
-
-    Note over GV,HS: CHU TRÌNH 2: HỌC VỤ & KHÓA SỔ HỌC BẠ 6 CẤP
-    GV->>TO: (5) Nhập điểm nháp (DRAFT) ➔ Rà soát & Bấm "Nộp bảng điểm" (SUBMITTED)
-    TO->>PHT: (6) Thẩm định ma trận đề thi ➔ Ký duyệt tổ (CAMPUS_CONFIRMED)
-    PHT->>HT: (7) Rà soát phổ điểm phân hiệu ➔ Ký duyệt cơ sở (VP_REVIEWED)
-    HT->>HT: (8) Ký duyệt toàn trường (PRINCIPAL_APPROVED) ➔ Kích hoạt KHÓA CỨNG (LOCKED)
-    HT->>HS: (9) Mở cổng Sổ liên lạc điện tử ➔ Phụ huynh & Học sinh tra cứu
-
-    Note over GV,HT: CHU TRÌNH 3: XỬ LÝ KHỦNG HOẢNG & ĐIỀU PHỐI DẠY THAY
-    GV->>PHT: (10) Báo nghỉ đột xuất tiết 2 (đường đèo sạt lở)
-    PHT->>HT: (11) AI gợi ý GV dạy thay theo ma trận Km ➔ Trình Hiệu trưởng
-    HT->>GV: (12) Hiệu trưởng bấm duyệt 1-click ➔ Lệnh điều động gửi tới GV dạy thay
 ```
-
----
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  👨‍🏫 1. GIÁO VIÊN BÁO NGHỈ ĐỘT XUẤT                                          │
+│  07:00 sáng: Bị sạt lở đường đèo ➔ Bấm "Báo nghỉ" tiết 2 môn Toán            │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Gửi sự kiện khẩn cấp
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🤖 2. ĐỘNG CƠ AI & MA TRẬN KHOẢNG CÁCH KM                                   │
+│  • Lọc giáo viên cùng môn Toán có tiết trống                                 │
+│  • Tối ưu km: Trung tâm ➔ Sơn Hà 1 (3.5 km đường ngắn nhất)                  │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Đề xuất phương án tối ưu
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  👔 3. PHÓ HIỆU TRƯỞNG & HIỆU TRƯỞNG PHÊ DUYỆT                               │
+│  • Xem đề xuất của AI ➔ Bấm Duyệt chỉ trong 1 click trên Dashboard           │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Tự động kích hoạt 2 hành động
+                                       ├───────────────────────────────────────┐
+                                       ▼                                       ▼
+┌──────────────────────────────────────────────┐ ┌─────────────────────────────┐
+│  📅 4. THỜI KHÓA BIỂU ĐIỆN TỬ                │ │ 📲 5. GIÁO VIÊN DẠY THAY    │
+│  Tự động đổi tên giáo viên trên hệ thống     │ │ Nhận thông báo SMS & App    │
+│  Học sinh và nhà trường theo dõi thời gian   │ │ Kịp thời lên lớp đúng giờ   │
+└──────────────────────────────────────────────┘ └─────────────────────────────┘
+```
 
 ### 📋 3.2. BÓC TÁCH CHI TIẾT LOGIC HOẠT ĐỘNG CỦA TỪNG VAI TRÒ TÀI KHOẢN
 
@@ -257,41 +298,73 @@ Dưới đây là bảng phân tích kỹ thuật chi tiết về **Dữ liệu 
 
 ---
 
-#### 📌 SƠ ĐỒ 3: LUỒNG ĐIỂM DANH & BÁN TRÚ 3 PHA TRONG NGÀY
-*(Kết nối dữ liệu các điểm lẻ về trường chính trong 45 phút đầu giờ)*
+#### 📌 SƠ ĐỒ 3: LUỒNG ĐIỂM DANH & BÁN TRÚ 3 PHA BUỔI SÁNG (06:45 - 08:00)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🌅 PHA 1: 06:45 - 07:15 (TẠI CÁC PHÂN HIỆU ĐIỂM LẺ)                          │
+│  • Giáo viên điểm danh tại lớp: Có mặt / Vắng phép / Vắng không phép          │
+│  • Chốt chính xác số lượng học sinh ăn trưa bán trú                          │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Đồng bộ thời gian thực về máy chủ
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🍲 PHA 2: 07:15 - 07:30 (TẠI VĂN PHÒNG KẾ TOÁN & BẾP BÁN TRÚ)                │
+│  • Phó Hiệu trưởng kiểm tra, ký xác nhận sĩ số phân hiệu                     │
+│  • Hệ thống tự động gom dữ liệu cả 6 điểm trường lẻ                          │
+│  • Xuất phiếu báo suất ăn chính xác cho nhà bếp nấu cơm lúc 07:30             │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ Đẩy báo cáo tổng hợp lên BGH
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  📊 PHA 3: 07:30 - 08:00 (BÀN LÀM VIỆC CỦA HIỆU TRƯỞNG)                       │
+│  • Hiệu trưởng mở Daily Summary Dashboard                                     │
+│  • Nắm bức tranh chuyên cần toàn trường (% đạt, điểm nóng sụt giảm sĩ số)    │
+│  • Chỉ đạo nóng các điểm trường có học sinh vắng bất thường                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
 ```mermaid
-graph LR
-    %% 3 Pha tuyến tính
-    subgraph P1 ["PHA 1 (06:45 - 07:15)"]
-        G1["<b>Giáo viên điểm danh</b><br/>Có mặt / Vắng / Suất ăn"]
-    end
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Arial' }}}%%
+graph TD
+    P1["<b>PHA 1 (06:45 - 07:15)</b><br/>Giáo viên điểm danh tại lớp ➔ Chốt suất ăn trưa"]
+    -->|"Đồng bộ thời gian thực"| P2["<b>PHA 2 (07:15 - 07:30)</b><br/>Phó HT & Kế toán gom số liệu 6 điểm ➔ Báo bếp bán trú"]
+    
+    P2 -->|"Xuất phiếu nấu cơm"| Bep["<b>🍲 Nhà bếp bán trú</b><br/>Nấu đúng số suất ăn"]
+    P2 -->|"Đẩy lên Dashboard"| P3["<b>PHA 3 (07:30 - 08:00)</b><br/>Hiệu trưởng xem tỷ lệ chuyên cần toàn trường"]
 
-    subgraph P2 ["PHA 2 (07:15 - 07:30)"]
-        G2["<b>Phó HT & Kế toán</b><br/>Chốt tổng số suất ăn 6 điểm"]
-    end
-
-    subgraph P3 ["PHA 3 (07:30 - 08:00)"]
-        G3["<b>Hiệu trưởng điều hành</b><br/>Xem tỷ lệ chuyên cần toàn trường"]
-    end
-
-    G1 -->|"Đồng bộ thời gian thực"| G2
-    G2 -->|"Xuất phiếu báo bếp"| Bep["<b>🍲 Nhà bếp bán trú</b><br/>Nấu đúng số suất ăn"]
-    G2 -->|"Đẩy lên Dashboard"| G3
-
-    style P1 fill:#eff6ff,stroke:#3b82f6,stroke-width:2px
-    style P2 fill:#fffbeb,stroke:#f59e0b,stroke-width:2px
-    style P3 fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
-    style Bep fill:#fef2f2,stroke:#ef4444,stroke-width:2px
+    style P1 fill:#eff6ff,stroke:#3b82f6,stroke-width:3px,color:#1e40af
+    style P2 fill:#fffbeb,stroke:#f59e0b,stroke-width:3px,color:#92400e
+    style P3 fill:#f0fdf4,stroke:#22c55e,stroke-width:3px,color:#166534
+    style Bep fill:#fee2e2,stroke:#ef4444,stroke-width:3px,color:#991b1b
 ```
 
 ---
 
 ### 🔐 3.3. Sơ Đồ Bảo Mật: Cô Lập Tài Khoản & Phân Quyền Điểm Trường
 
-Sơ đồ phân nhánh rõ ràng giải thích **cách hệ thống chặn đứng mọi hành vi truy cập trái phép**:
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                     👤 NGƯỜI DÙNG GỬI YÊU CẦU TRUY CẬP                       │
+└──────────────────────────────────────┬───────────────────────────────────────┘
+                                       │ NextAuth giải mã Token JWT
+                                       ▼
+                     ┌───────────────────────────────────┐
+                     │ Kiểm tra Vai trò (Role Scoping)   │
+                     └─────────────────┬─────────────────┘
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ▼                             ▼                             ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────┐
+│  SUPER_ADMIN            │ │  VICE_PRINCIPAL         │ │  ADMIN (Hiệu trưởng)│
+│  (Quản trị viên máy chủ)│ │  (Phó HT Phân hiệu)     │ │  (Toàn quyền)       │
+│  • Xem cấu hình hạ tầng │ │  • Chỉ xem điểm mình    │ │  • Xem & duyệt cả   │
+│  • CẤM XEM HỌC BẠ PII   │ │  • CỐ XEM ĐIỂM KHÁC:    │ │    6 điểm trường    │
+│    ➔ Chặn 403 Forbidden │ │    ➔ Chặn 403 Forbidden │ │  • Ký duyệt AI      │
+└─────────────────────────┘ └─────────────────────────┘ └─────────────────────┘
+```
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Arial' }}}%%
 flowchart TD
     User([👤 Người dùng gửi yêu cầu truy cập]) --> CheckLogin{Đã đăng nhập?}
 
@@ -315,21 +388,20 @@ flowchart TD
     RoleCheck -- "TEACHER (Giáo viên)" --> OK_Teacher["✅ Chỉ xem và quản lý lớp được phân công"]
 
     %% Định dạng màu sắc
-    style BlockSuper fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
-    style BlockCross fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
-    style OK_All fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
-    style OK_Campus fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#075985
-    style OK_Teacher fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#5b21b6
-    style OK_Infra fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
+    style BlockSuper fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#991b1b
+    style BlockCross fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#991b1b
+    style OK_All fill:#dcfce7,stroke:#16a34a,stroke-width:3px,color:#166534
+    style OK_Campus fill:#e0f2fe,stroke:#0284c7,stroke-width:3px,color:#075985
+    style OK_Teacher fill:#f3e8ff,stroke:#9333ea,stroke-width:3px,color:#5b21b6
+    style OK_Infra fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#92400e
 ```
 
 ---
 
 ### 🤖 3.4. Sơ Đồ Chốt Chặn Quyết Định AI (Decision Gate 3 Mức)
 
-Cách AI phối hợp với CSDL thật, hiển thị **3 màu trạng thái rõ ràng**:
-
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '16px', 'fontFamily': 'Arial' }}}%%
 flowchart TD
     Q[Hiệu trưởng đặt câu hỏi điều hành] 
     --> AI[Mô hình AI đọc CSDL & đưa ra lời khuyên]
@@ -341,9 +413,9 @@ flowchart TD
     
     Gate -- "🔴 AI bịa đặt / Sai lệch số liệu" --> StateRed["<b>TRẠNG THÁI: HALLUCINATED</b><br/>🔒 KHÓA CỨNG NÚT LƯU (Disabled 100%)<br/>Cấm lưu quyết định sai lầm vào hệ thống"]
 
-    style StateGreen fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
-    style StateYellow fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
-    style StateRed fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#991b1b
+    style StateGreen fill:#dcfce7,stroke:#16a34a,stroke-width:3px,color:#166534
+    style StateYellow fill:#fef3c7,stroke:#d97706,stroke-width:3px,color:#92400e
+    style StateRed fill:#fee2e2,stroke:#dc2626,stroke-width:4px,color:#991b1b
 ```
 
 1. **Cơ chế Phân bổ Điểm trường Chặt chẽ (Campus Scoping Logic)**:
