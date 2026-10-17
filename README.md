@@ -65,8 +65,8 @@ Hệ thống Quản lý Trường học (School Management System) cung cấp m�
 
 ### 2. Tải mã nguồn & Cài đặt thư viện
 ```bash
-git clone https://github.com/Phuc2009-c/quanlytruonghoc.git
-cd quanlytruonghoc
+git clone https://github.com/Phuc2009-c/quanlytruonghocc.git
+cd quanlytruonghocc
 npm install
 ```
 
