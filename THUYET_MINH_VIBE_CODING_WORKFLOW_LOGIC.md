@@ -12,7 +12,7 @@
 ## 📌 MỤC LỤC
 1. [Triết lý "Vibe Coding với AI" Đỉnh Cao Của Dự Án](#1-triết-lý-vibe-coding-với-ai-đỉnh-cao-của-dự-án)
 2. [Mô Tả Tổng Quan Dự Án & Bài Toán Thực Tiễn](#2-mô-tả-tổng-quan-dự-án--bài-toán-thực-tiễn)
-3. [Workflow Chi Tiết: Luồng Vận Hành Của Các Đối Tượng Sử Dụng](#3-workflow-chi-tiết-luồng-vận-hành-của-các-đối-tượng-sử-dụng)
+3. [Hệ Thống Tài Khoản, Phân Quyền 8 Cấp & Luồng Tương Tác Quản Trị](#3-hệ-thống-tài-khoản-phân-quyền-8-cấp--luồng-tương-tác-quản-trị)
 4. [Logic Flow: Luồng Logic Kỹ Thuật & Kiến Trúc AI Chuyên Sâu](#4-logic-flow-luồng-logic-kỹ-thuật--kiến-trúc-ai-chuyên-sâu)
 5. [Số Liệu Kiểm Chứng & Năng Lực Triển Khai Thực Tế](#5-số-liệu-kiểm-chứng--năng-lực-triển-khai-thực-tế)
 6. [Bộ Câu Hỏi Vấn Đáp Chuyên Sâu Về AI & Vibe Coding Cho Giám Khảo](#6-bộ-câu-hỏi-vấn-đáp-chuyên-sâu-về-ai--vibe-coding-cho-giám-khảo)
@@ -62,81 +62,159 @@ Dự án kiến tạo một **Hệ điều hành quản trị trường học li
 
 ---
 
-## 3. WORKFLOW CHI TIẾT: LUỒNG VẬN HÀNH CỦA CÁC ĐỐI TƯỢNG SỬ DỤNG
+## 3. HỆ THỐNG TÀI KHOẢN, PHÂN QUYỀN 8 CẤP & LUỒNG TƯƠNG TÁC QUẢN TRỊ
 
+Hệ thống quản lý trường học liên cấp đa phân hiệu vận hành dựa trên mô hình **Phân quyền Đa tầng (Multi-tier Role-Based Access Control - RBAC)** kết hợp **Cô lập Điểm trường (Campus Scoping)**. Dưới đây là phân tích toàn diện về cấu trúc tài khoản, luồng tương tác qua lại và cơ chế quản lý an ninh:
+
+---
+
+### 👥 3.1. Bảng Ma Trận 8 Vai Trò Tài Khoản (Roles & Permissions Matrix)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 SƠ ĐỒ PHÂN CẤP TÀI KHOẢN HỆ THỐNG                                │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [CẤP BỘ / HẠ TẦNG]   ➔ SUPER_ADMIN (Quản trị hạ tầng máy chủ, CẤM xem học bạ chi tiết)           │
+│ [CẤP TỈNH / SỞ]      ➔ DEPARTMENT_ADMIN (Sở GD&ĐT: Xem thống kê toàn tỉnh theo departmentId)     │
+│ [CẤP HUYỆN / PHÒNG]  ➔ DISTRICT_ADMIN (Phòng GD&ĐT: Xem thống kê huyện theo districtWardId)      │
+│ [CẤP XÃ / ĐỊA PHƯƠNG]➔ WARD_ADMIN (UBND Xã: Xem phổ cập giáo dục & bán trú theo CampusWardMap)   │
+│                                           │                                                      │
+│ [CẤP TRƯỜNG TOÀN CỤC]➔ ADMIN (Hiệu trưởng / Kế toán: Toàn quyền cả 6 điểm trường, ký duyệt AI)  │
+│                                           │                                                      │
+│ [CẤP PHÂN HIỆU ĐIỂM LẺ]➔ VICE_PRINCIPAL (Phó Hiệu trưởng: Khóa chặt với campusId, cấm xem chéo)  │
+│ [CẤP TỔ CHUYÊN MÔN]  ➔ SUBJECT_HEAD (Tổ trưởng: Quản lý chuyên môn tổ bộ môn xuyên phân hiệu)    │
+│ [CẤP LỚP HỌC]        ➔ TEACHER (Giáo viên bộ môn & GVCN: Điểm danh, nhập điểm, báo ốm)           │
+│ [CẤP NGƯỜI THỤ HƯỞNG]➔ STUDENT / PARENT (Học sinh & Phụ huynh: Tra cứu học bạ, chuyên cần)       │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Vai Trò (`Role`) | Phạm Vi (`ScopeType`) | Quyền Hạn Nghiệp Vụ Cốt Lõi | Cơ Chế Bảo Vệ / Giới Hạn |
+| :--- | :--- | :--- | :--- |
+| **`SUPER_ADMIN`** | `GLOBAL` | Quản trị hạ tầng đám mây, cấu hình hệ thống, sao lưu CSDL | **Chặn xem học bạ/điểm số chi tiết (HTTP 403)** để bảo vệ PII |
+| **`DEPARTMENT_ADMIN`** | `DEPARTMENT` | Giám sát vĩ mô toàn tỉnh, duyệt chỉ tiêu tuyển sinh | Chỉ xem dữ liệu tổng hợp của các trường thuộc Sở (`departmentId`) |
+| **`DISTRICT_ADMIN`** | `DISTRICT` | Giám sát chất lượng các trường trong huyện, thanh tra KPI | Chỉ xem dữ liệu các trường thuộc Phòng GD&ĐT (`districtWardId`) |
+| **`WARD_ADMIN`** | `WARD` | Giám sát tình hình phổ cập giáo dục, học sinh bán trú | Chỉ xem các điểm trường đóng trên địa bàn xã (`CampusWardMap`) |
+| **`ADMIN`** (Hiệu trưởng) | `SCHOOL_GLOBAL` | Toàn quyền điều hành cả 6 phân hiệu, phê duyệt AI, khóa sổ 6 cấp | Duy nhất có quyền ký số quyết định AI và duyệt mở khóa dữ liệu |
+| **`VICE_PRINCIPAL`** (Phó HT) | `CAMPUS` | Quản lý học vụ, điểm danh, nề nếp tại phân hiệu phụ trách | **Bị khóa cứng theo `campusId`** (truy cập điểm khác bị chặn 403) |
+| **`SUBJECT_HEAD`** (Tổ trưởng) | `SUBJECT_GROUP` | Duyệt kế hoạch bài dạy, duyệt điểm kiểm tra của tổ | Giới hạn trong tổ bộ môn được phân công (`UserRoleScope`) |
+| **`TEACHER`** (Giáo viên) | `CLASS_SUBJECT` | Điểm danh học sinh, nhập điểm, ghi sổ đầu bài, báo vắng | Chỉ sửa được lớp mình dạy; bị khóa sửa khi dữ liệu chuyển `LOCKED` |
+| **`STUDENT`** / **`PARENT`** | `INDIVIDUAL` | Xem thời khóa biểu cá nhân, tra cứu điểm, theo dõi chuyên cần | Chỉ xem được thông tin của chính bản thân/con em mình |
+
+---
+
+### 🔄 3.2. Luồng Hoạt Động Tương Tác Qua Lại Giữa Các Tài Khoản (Inter-Role Workflows)
+
+#### 🔸 Luồng A: Quy trình Điểm danh Đầu giờ & Xử lý Bán trú (06:45 - 08:00)
+1. **Giáo viên chủ nhiệm (`TEACHER`)**:
+   - 06:45 sáng: Mở điện thoại điểm danh tại lớp (hỗ trợ lưu Offline nếu mất sóng đèo).
+   - Ghi nhận số lượng học sinh có mặt, vắng phép, vắng không phép và số suất ăn trưa bán trú.
+   - Bấm nút **"Chốt danh sách đầu giờ"**.
+2. **Phó Hiệu trưởng phân hiệu (`VICE_PRINCIPAL`)**:
+   - Màn hình quản lý của Phó HT lập tức nhảy số liệu thời gian thực của các lớp thuộc điểm trường mình.
+   - Thẩm định các trường hợp học sinh vắng bất thường (nguy cơ bỏ học mùa vụ) để chỉ đạo GVCN gọi điện cho gia đình.
+3. **Kế toán & Quản lý bếp ăn (`ADMIN` / `STAFF`)**:
+   - Hệ thống tự động tổng hợp số suất ăn của toàn bộ 6 phân hiệu, kết xuất phiếu báo suất ăn cho nhà bếp bán trú lúc 07:30.
+4. **Hiệu trưởng (`ADMIN`)**:
+   - Mở **Daily Summary Dashboard**: Xem tỷ lệ chuyên cần toàn trường (đạt bao nhiêu %, điểm nào thấp nhất) để chỉ đạo nóng.
+
+---
+
+#### 🔸 Luồng B: Quy trình Báo Vắng Đột Xuất & Điều Phối Dạy Thay Tức Thì
 ```mermaid
 sequenceDiagram
     autonumber
-    actor GV as Giáo viên Điểm lẻ
-    actor HT as Hiệu trưởng (Admin)
-    participant Sys as Hệ thống Next.js 16
-    participant AI as AI Engine & Gate
-    participant DB as Supabase PostgreSQL
+    actor GVA as GV A (Báo ốm)
+    actor GVB as GV B (Dạy thay)
+    participant Sys as Hệ thống AI Engine
+    actor PHT as Phó Hiệu trưởng Điểm
+    actor HT as Hiệu trưởng
 
-    Note over GV,Sys: PHA 1: 06:45 - 07:15 SÁNG (Thu nhận hiện trường)
-    GV->>Sys: Điểm danh đầu giờ & Ghi nhận giáo viên vắng
-    Sys->>DB: Lưu điểm danh & Trạng thái vắng mặt
-    
-    Note over HT,Sys: PHA 2: 07:15 - 07:30 SÁNG (Điều hành & Xử lý sự cố)
-    HT->>Sys: Mở Dashboard Daily Summary
-    Sys->>DB: Truy vấn Snapshot 6 điểm trường
-    Sys-->>HT: Hiển thị sĩ số, sự cố, danh sách vắng
-    HT->>Sys: Yêu cầu AI điều chuyển dạy thay
-    Sys->>AI: Chạy thuật toán so khớp lịch & khoảng cách Km
-    AI-->>HT: Đề xuất GV dạy thay tối ưu nhất
-    HT->>Sys: Duyệt phân công dạy thay trong 1 click
-
-    Note over HT,AI: PHA 3: GIỜ HÀNH CHÍNH (Quản trị chiến lược)
-    HT->>Sys: Yêu cầu AI tư vấn báo cáo điều hành
-    Sys->>AI: Gửi Context dữ liệu thật từ DB + Bộ nhớ quá khứ
-    AI-->>Sys: Trả về văn bản tư vấn kèm số liệu
-    Sys->>AI: Kích hoạt verifyAIGrounding()
-    alt Số liệu khớp 100%
-        Sys-->>HT: Nút "Phê duyệt & Ký lưu" MỞ (Xanh lá)
-        HT->>Sys: Bấm Ký duyệt báo cáo
-        Sys->>DB: Khóa dữ liệu Data Locking & Ghi AuditLog
-    else Phát hiện AI bịa số liệu
-        Sys-->>HT: Nút "Phê duyệt" BỊ KHÓA CỨNG (Đỏ)
-    end
+    GVA->>Sys: Gửi yêu cầu "Báo nghỉ đột xuất" tiết 2
+    Sys->>Sys: Kích hoạt CSP Engine + Ma trận Km địa lý
+    Sys->>Sys: Lọc GV cùng môn Toán, có tiết trống, gần nhất
+    Sys-->>PHT: Đề xuất: "GV B tại điểm Trung tâm (cách 3.5km) dạy thay"
+    PHT->>HT: Chuyển tờ trình phân công khẩn cấp
+    HT->>Sys: Bấm "Phê duyệt điều chuyển" (1 click)
+    Sys->>Sys: Cập nhật Thời khóa biểu điện tử tức thì
+    Sys-->>GVB: Gửi thông báo SMS & Push Notification lệnh dạy thay
+    Sys-->>GVA: Thông báo đã bố trí người dạy thay thành công
 ```
 
-### 🔹 Luồng 1: Quy trình Báo cáo 3 Pha Hàng Ngày (Daily Operations Cycle)
-1. **Pha Sáng (06:45 - 07:30)**:
-   - Giáo viên tại các điểm trường thực hiện điểm danh lớp học qua điện thoại (hỗ trợ PWA Offline khi mất sóng đường đèo).
-   - Nếu có giáo viên ốm đột xuất, giáo viên bấm "Báo nghỉ".
-   - Hiệu trưởng mở trang `/admin/daily-summary`: AI tự động tổng hợp bức tranh toàn trường, tính toán tỷ lệ chuyên cần từng điểm trường và kích hoạt bộ máy điều phối dạy thay.
-2. **Pha Trưa (11:30 - 12:30)**:
-   - Hệ thống tổng hợp tình hình bán trú: Số lượng suất ăn thực tế, các sự cố phát sinh tại nhà bếp hoặc y tế học đường.
-3. **Pha Chiều / Tối (16:30 - 18:00)**:
-   - Tổng kết sổ đầu bài, hành vi học sinh vi phạm kỷ luật hoặc đạt hoa điểm tốt.
-   - AI tổng hợp báo cáo ngày gửi cho Ban Giám hiệu và lưu trữ vào sổ điều hành.
+---
 
-### 🔹 Luồng 2: Quy trình Điều Phối Dạy Thay Thông Minh (Smart Substitution Dispatch)
-1. **Kích hoạt sự kiện**: Khi giáo viên $A$ tại điểm trường $X$ nghỉ đột xuất vào tiết 2 thứ Ba.
-2. **Lọc ràng buộc chuyên môn**: Hệ thống quét trong CSDL tìm tất cả giáo viên có cùng môn học và đang có tiết trống vào thời điểm đó.
-3. **Tối ưu hóa khoảng cách địa lý**:
-   - Hệ thống truy vấn ma trận khoảng cách:
-     - Trung tâm ➔ Sơn Hà 1: $3.5\text{ km}$
-     - Trung tâm ➔ Sơn Hà 2: $5.2\text{ km}$
-     - Trung tâm ➔ Sơn Hải: $6.8\text{ km}$
-     - Trung tâm ➔ An Tiến: $8.5\text{ km}$ (đường đèo hiểm trở)
-   - Thuật toán sắp xếp ưu tiên: Giáo viên đang có mặt tại chính điểm trường đó ➔ Giáo viên tại điểm lân cận gần nhất có phương tiện ➔ Tránh điều chuyển giáo viên có tiết dạy ở 2 điểm trường khác nhau trong cùng một buổi.
-4. **Phê duyệt & Thông báo**: Hiệu trưởng xác nhận phương án trong 1 chạm, hệ thống lập tức cập nhật lại Thời khóa biểu và gửi thông báo SMS/App cho giáo viên nhận nhiệm vụ.
+#### 🔸 Luồng C: Quy trình Nhập Điểm, Thẩm Định & Khóa Dữ Liệu 6 Cấp (Data Locking)
+1. **Bước 1 (`DRAFT`)**: Giáo viên bộ môn nhập điểm kiểm tra thường xuyên/định kỳ cho học sinh. Điểm còn ở dạng bản nháp, giáo viên có quyền chỉnh sửa.
+2. **Bước 2 (`SUBMITTED`)**: Giáo viên kiểm tra kỹ và bấm **"Nộp điểm"**.
+3. **Bước 3 (`CAMPUS_CONFIRMED`)**: Tổ trưởng chuyên môn (`SUBJECT_HEAD`) rà soát bảng điểm, kiểm tra ma trận đề thi và ký xác nhận cấp tổ.
+4. **Bước 4 (`VP_REVIEWED`)**: Phó Hiệu trưởng phụ trách chuyên môn phân hiệu thẩm định phổ điểm, đối soát với tiến độ chương trình.
+5. **Bước 5 (`PRINCIPAL_APPROVED`)**: Hiệu trưởng kiểm tra tổng thể toàn trường và ký số phê duyệt chính thức.
+6. **Bước 6 (`LOCKED`)**: Hệ thống tự động kích hoạt hàm `lockDataRecord()`. Bản ghi chuyển sang trạng thái **ĐÓNG BĂNG VĨNH VIỄN**:
+   - Cấm mọi hành vi sửa/xóa điểm từ giáo viên lẫn quản trị viên.
+   - Phụ huynh và học sinh được xem điểm chính thức trên sổ liên lạc điện tử.
+   - Nếu muốn sửa điểm (do phúc khảo), bắt buộc phải làm **Phiếu đề xuất mở khóa (Unlock Request)** giải trình trước Hiệu trưởng và toàn bộ thao tác được ghi vết vĩnh viễn vào `AuditLog`.
 
-### 🔹 Luồng 3: Quy trình Trải nghiệm & Kiểm Thử Benchmark (Testing Sandbox)
-Dành riêng cho Hội đồng Giám khảo và Chuyên gia thẩm định tại `/admin/ai-assistant/testing-sandbox`:
-1. Giám khảo chọn 1 trong **5 Kịch bản Thử thách Thực tế**:
-   - *Kịch bản 1 (Kiểm thử Bộ nhớ AI)*: Thử phân công giáo viên đi điểm đèo An Tiến ➔ Nhập phản hồi đính chính ➔ Chạy lại kịch bản để thấy AI học tập và không bao giờ tái phạm.
-   - *Kịch bản 2 (Tổ chức Bộ máy)*: Tối ưu nhân sự BGH dôi dư theo Nghị quyết 37 và chính sách bảo lưu phụ cấp 36 tháng theo Nghị định 178.
-   - *Kịch bản 3 (Tối ưu Thời khóa biểu)*: Xếp lịch liên phân hiệu loại trừ xung đột thời gian di chuyển giữa các tiết liền nhau.
-   - *Kịch bản 4 (Dự báo Chuyên cần)*: Mô hình OLS tính toán nguy cơ học sinh bỏ học mùa thu hoạch lúa tháng 10.
-   - *Kịch bản 5 (Kiểm định Chất lượng)*: Tự động đánh giá tiêu chuẩn trường chuẩn quốc gia theo Thông tư 15.
-2. Giám khảo đánh giá câu trả lời trên **4 Chiều Chất lượng (1 đến 5 sao)**:
-   - *Khả thi thực tế*: Phù hợp địa hình đèo dốc và năng lực nhà trường.
-   - *Căn cứ pháp lý*: Trích dẫn chính xác luật, nghị định, thông tư.
-   - *Độ chính xác trích nguồn*: Khớp 100% với dữ liệu CSDL.
-   - *An toàn sư phạm*: Lời văn chuẩn mực, bảo vệ học sinh.
-3. Bấm nút **"Xuất Báo Cáo Nghiệm Thu"** để tải file Markdown biên bản thẩm định chính thức.
+---
+
+#### 🔸 Luồng D: Quy trình BGH Tương Tác Với Trợ Lý AI Điều Hành (Principal AI)
+1. **Hiệu trưởng (`ADMIN`)**: Nhập câu hỏi điều hành (Ví dụ: *"Đánh giá tình hình chuyên cần tháng 10 và đề xuất giải pháp cho điểm An Tiến"*).
+2. **AI Data Engine**: Truy vấn CSDL thật của Supabase, gom số liệu điểm An Tiến kèm các đính chính trong bộ nhớ `AiFeedback`.
+3. **Mô hình AI**: Phân tích và sinh văn bản tư vấn kèm các phương án hành động.
+4. **Chốt chặn Decision Gate**: Kiểm tra xem số liệu AI nói có trùng khớp với CSDL không:
+   - Nếu số liệu khớp: Hiển thị cờ `VERIFIED`, nút **"Phê duyệt & Ký lưu"** mở sáng màu xanh.
+   - Nếu phát hiện AI bịa số liệu: Hiển thị cờ `HALLUCINATED`, **KHÓA CỨNG NÚT LƯU**, bảo vệ Hiệu trưởng không ra quyết định sai lầm.
+5. **Hiệu trưởng duyệt**: Quyết định được lưu vào sổ điều hành và gửi chỉ đạo xuống các Phó Hiệu trưởng và Giáo viên liên quan.
+
+---
+
+### 🔐 3.3. Cơ Chế Quản Lý & Bảo Mật Vòng Đời Tài Khoản (Account Lifecycle & Security Logic)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 VÒNG ĐỜI QUẢN LÝ TÀI KHOẢN (LIFECYCLE)                           │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. CẤP PHÁT (Provisioning)     ➔ Tạo tài khoản, mã hóa Bcrypt, gán schoolId, campusId, role     │
+│ 2. KIỂM DUYỆT (Approval Gate)  ➔ isApproved = false ➔ Gán 'unapproved-no-access-000' cô lập 100% │
+│ 3. XÁC THỰC (Authentication)   ➔ NextAuth JWT + Rate Limiter chống Brute-force                   │
+│ 4. THI HÀNH PHÂN QUYỀN (Guard) ➔ assertCampusAccess(403) & assertNotSuperAdmin(403)             │
+│ 5. KIỂM TOÁN (Audit Logging)   ➔ Ghi vết mọi thao tác đăng nhập, sửa đổi, cấp lại mật khẩu      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **Cơ chế Phân bổ Điểm trường Chặt chẽ (Campus Scoping Logic)**:
+   - Khi tạo tài khoản cho Phó Hiệu trưởng hoặc Giáo viên, trường `campusId` được gán cố định (ví dụ: `cmp_sonha1` cho điểm Sơn Hà 1).
+   - Ở mọi hàm Server Action, hàm `assertCampusAccess(ctx, targetCampusId)` được gọi đầu tiên:
+     ```typescript
+     if (ctx.userRole === "VICE_PRINCIPAL" && targetCampusId !== ctx.campusId) {
+       throw new Error("Khong co quyen truy cap du lieu phan hieu nay. (403)");
+     }
+     ```
+     Điều này triệt tiêu hoàn toàn lỗ hổng IDOR (Insecure Direct Object References) – người dùng không thể đổi ID trên thanh địa chỉ URL để xem lén cơ sở khác.
+2. **Cơ chế Cổng Phê Duyệt Tài Khoản (`isApproved Gate`)**:
+   - Tài khoản mới đăng ký hoặc chưa được BGH xét duyệt sẽ có cờ `isApproved = false`.
+   - Hàm `buildSchoolFilter()` lập tức gán bộ lọc rỗng `{ schoolId: "unapproved-no-access-000" }`, ngăn chặn tài khoản chưa duyệt nhìn thấy bất kỳ dữ liệu nào của nhà trường.
+3. **Cơ chế Bảo vệ Dữ liệu Riêng tư Cá nhân (PII Privacy Guard)**:
+   - Hàm `assertNotSuperAdminOnAcademicDetail(ctx)` ngăn cấm tài khoản Quản trị viên hệ thống (`SUPER_ADMIN`) đọc học bạ, điểm kiểm tra của học sinh. Super Admin chỉ được xem các báo cáo tổng quan hạ tầng, đảm bảo chuẩn mực bảo vệ dữ liệu nhạy cảm của ngành giáo dục.
+4. **An toàn Mật khẩu & Phòng chống Tấn công**:
+   - Toàn bộ mật khẩu lưu trữ trong bảng `User` được băm bằng thuật toán **Bcrypt (Salt rounds = 10)**.
+   - Tích hợp bộ đệm kiểm soát tần suất đăng nhập (`rate-limiter.ts`) khóa tạm thời tài khoản nếu nhập sai quá 5 lần liên tiếp để chống tấn công dò mật khẩu (Brute-force).
+
+---
+
+### 📋 3.4. Bảng Danh Mục Tài Khoản Thực Nghiệm Cho Ban Giám Khảo (Mật khẩu mặc định: `123456`)
+
+Ban Giám khảo có thể đăng nhập trực tiếp trên website [https://quanlytruonghocc.vercel.app](https://quanlytruonghocc.vercel.app/login) bằng các tài khoản đại diện dưới đây để kiểm chứng phân quyền thực tế:
+
+| Email Đăng Nhập | Vai Trò | Danh Tính Đại Diện | Phạm Vi Trải Nghiệm Khuyên Dùng |
+| :--- | :--- | :--- | :--- |
+| `hieutruong.thpholu@gmail.com` | **ADMIN** | ThS. Nguyễn Quản Trị (Hiệu trưởng) | Xem Dashboard toàn cục, Trợ lý Principal AI, Testing Sandbox, Duyệt khóa sổ |
+| `pht.sonha1@gmail.com` | **VICE_PRINCIPAL** | Thầy Nguyễn Văn Sơn (PHT Sơn Hà 1) | Quản lý riêng phân hiệu Sơn Hà 1 (Kiểm chứng bị chặn 403 nếu cố xem Sơn Hải) |
+| `pht.trungtam@gmail.com` | **VICE_PRINCIPAL** | ThS. Nguyễn Văn Trung (PHT Trung tâm) | Quản lý điểm trường Trung tâm, điều phối dạy thay |
+| `gv.toan.trungtam@gmail.com` | **TEACHER** | Giáo viên Bộ môn Toán Trung tâm | Thử tính năng Báo ốm đột xuất, nhận phân công dạy thay |
+| `gvcn.sonha1@gmail.com` | **TEACHER** | Giáo viên Chủ nhiệm Lớp 1 Sơn Hà 1 | Điểm danh học sinh điểm lẻ, nhập sổ đầu bài, trợ lý nhận xét học bạ AI |
+| `hs.lop5a1.pholu@gmail.com` | **STUDENT** | Học sinh Lớp 5A1 Trung tâm | Xem thời khóa biểu cá nhân, tra cứu điểm và chuyên cần |
+| `ketoan.thpholu@gmail.com` | **ADMIN** | Vũ Thị Phương Mai (Kế toán trưởng) | Quản lý suất ăn bán trú, tính toán phụ cấp bảo lưu dôi dư NĐ 178 |
+| `admin.sogd.laocai@gmail.com` | **DEPARTMENT_ADMIN** | Lãnh đạo Sở GD&ĐT Lào Cai | Báo cáo thống kê giáo dục vĩ mô toàn tỉnh |
+| `superadmin.vietnam@gmail.com` | **SUPER_ADMIN** | Quản trị viên Hạ tầng Kỹ thuật | Cấu hình máy chủ, sao lưu (Kiểm chứng bị chặn 403 khi vào học bạ học sinh) |
 
 ---
 
