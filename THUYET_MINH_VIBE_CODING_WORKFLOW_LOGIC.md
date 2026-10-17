@@ -102,174 +102,150 @@ Hệ thống quản lý trường học liên cấp đa phân hiệu vận hành
 
 ---
 
-### 🔄 3.2. Luồng Hoạt Động Tương Tác Qua Lại Giữa Các Tài Khoản (Inter-Role Workflows)
+### 🔄 3.2. Sơ Đồ Trực Quan: Luồng Vận Hành Của Các Tài Khoản (Đơn Giản & Dễ Nhìn)
 
-Dưới đây là sơ đồ mạng lưới tương tác tổng thể giữa 8 vai trò người dùng trong hệ sinh thái quản lý trường học liên cấp:
+Nhằm giúp Ban Giám khảo nắm bắt toàn bộ hệ thống trong 10 giây, luồng tương tác giữa các tài khoản được tinh gọn thành **3 sơ đồ tuyến tính trực quan, phân màu rõ ràng**:
+
+---
+
+#### 📌 SƠ ĐỒ 1: HÀNH TRÌNH DỮ LIỆU TỪ LỚP HỌC ĐẾN BÀN HIỆU TRƯỞNG
+*(Quy trình nộp điểm, phê duyệt và khóa học bạ 6 cấp - Không thể gian lận)*
+
+```mermaid
+graph LR
+    %% Định nghĩa các bước
+    A["<b>1. GIÁO VIÊN</b><br/>Nhập điểm nháp (DRAFT)"] 
+    -->|"Bấm Nộp điểm"| B["<b>2. TỔ TRƯỞNG</b><br/>Thẩm định ma trận"]
+    -->|"Xác nhận cấp tổ"| C["<b>3. PHÓ HIỆU TRƯỞNG</b><br/>Duyệt học vụ điểm lẻ"]
+    -->|"Trình Hiệu trưởng"| D["<b>4. HIỆU TRƯỞNG</b><br/>Ký duyệt toàn trường"]
+    -->|"Kích hoạt Khóa cứng"| E["<b>5. KHÓA CSDL (LOCKED)</b><br/>🔒 Đóng băng vĩnh viễn"]
+    -->|"Công bố dữ liệu"| F["<b>6. PHỤ HUYNH & HỌC SINH</b><br/>Xem Sổ liên lạc điện tử"]
+
+    %% Tô màu trực quan
+    style A fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1
+    style B fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309
+    style C fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309
+    style D fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d
+    style E fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#b91c1c
+    style F fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#7e22ce
+```
+
+---
+
+#### 📌 SƠ ĐỒ 2: LUỒNG BÁO ỐM & ĐIỀU CHUYỂN DẠY THAY TỨC THÌ (AI DISPATCH)
+*(Xử lý sự cố trong 60 giây khi giáo viên vùng cao gặp đường sạt lở hoặc ốm đột xuất)*
 
 ```mermaid
 graph TD
-    subgraph OperationsZone ["1. TẦNG HIỆN TRƯỜNG & LỚP HỌC (Lớp & Điểm Lẻ)"]
-        GV["Giáo viên Bộ môn & GVCN (TEACHER)"]
-        HS["Học sinh & Phụ huynh (STUDENT/PARENT)"]
-    end
+    %% Khối phát sinh sự cố
+    GV_Nghi["<b>👨‍🏫 1. GIÁO VIÊN NGHỈ ĐỘT XUẤT</b><br/>Bấm 'Báo ốm' trên điện thoại lúc 07:00"]
+    --> AI_Engine["<b>🤖 2. ĐỘNG CƠ AI & MA TRẬN KM</b><br/>• Quét giáo viên cùng môn Toán có tiết trống<br/>• Tính khoảng cách: Trung tâm ➔ Sơn Hà (3.5km)"]
 
-    subgraph CampusReviewZone ["2. TẦNG THẨM ĐỊNH PHÂN HIỆU (Điểm Trường Lẻ)"]
-        TO["Tổ trưởng Chuyên môn (SUBJECT_HEAD)"]
-        PHT["Phó Hiệu trưởng Điểm trường (VICE_PRINCIPAL)"]
-    end
+    AI_Engine --> DeXuat["<b>📋 3. PHƯƠNG ÁN TỐI ƯU NHẤT</b><br/>Đề xuất GV Nguyễn Văn B (đang trống tiết)"]
+    
+    DeXuat --> BGH["<b>✍️ 4. HIỆU TRƯỞNG PHÊ DUYỆT</b><br/>Bấm duyệt trong 1 click trên Dashboard"]
 
-    subgraph SchoolExecutiveZone ["3. TẦNG ĐIỀU HÀNH TOÀN TRƯỜNG (BGH & Kế Toán)"]
-        HT["Hiệu trưởng Nhà trường (ADMIN)"]
-        KT["Kế toán & Quản trị Bán trú (ADMIN/STAFF)"]
-        AI_Assist["Trợ lý AI Chiến lược (Principal AI Engine)"]
-    end
+    BGH -->|"Cập nhật tức thì"| TKB["<b>📅 5. THỜI KHÓA BIỂU ĐIỆN TỬ</b><br/>Tự động đổi tên giáo viên phụ trách"]
+    BGH -->|"Bắn thông báo SMS/App"| GV_Thay["<b>📲 6. GIÁO VIÊN DẠY THAY</b><br/>Nhận thông báo và lên lớp đúng giờ"]
 
-    subgraph GovernmentZone ["4. TẦNG GIÁM SÁT NHÀ NƯỚC (Vĩ Mô)"]
-        UBND["UBND Xã (WARD_ADMIN)"]
-        PGD["Phòng GD&ĐT Huyện (DISTRICT_ADMIN)"]
-        SGD["Sở GD&ĐT Tỉnh (DEPARTMENT_ADMIN)"]
-    end
-
-    %% Tương tác Điểm danh & Bán trú
-    GV -- "(1) Điểm danh 06:45 & Chốt số ăn" --> PHT
-    PHT -- "(2) Xác nhận sĩ số điểm lẻ" --> KT
-    KT -- "(3) Tổng hợp 6 điểm ➔ Báo suất ăn bếp" --> HT
-
-    %% Tương tác Học vụ & Khóa điểm 6 cấp
-    GV -- "(4) Nộp điểm DRAFT" --> TO
-    TO -- "(5) Thẩm định ma trận đề" --> PHT
-    PHT -- "(6) Trình duyệt học vụ" --> HT
-    HT -- "(7) Ký số & KHÓA SỔ BẤT BIẾN (LOCKED)" --> HS
-
-    %% Tương tác Báo ốm & Xếp dạy thay
-    GV -. "(8) Báo nghỉ đột xuất" .-> AI_Assist
-    AI_Assist -. "(9) Gợi ý GV dạy thay theo Km" .-> PHT
-    PHT -. "(10) Trình phê duyệt khẩn" .-> HT
-    HT -. "(11) Duyệt 1 click" .-> GV
-
-    %% Giám sát vĩ mô
-    HT -- "(12) Đồng bộ báo cáo tổng hợp" --> PGD
-    HT -- "(12) Đồng bộ báo cáo tổng hợp" --> SGD
-    PHT -- "(13) Báo cáo phổ cập địa bàn" --> UBND
+    %% Màu sắc
+    style GV_Nghi fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
+    style AI_Engine fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#5b21b6
+    style DeXuat fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
+    style BGH fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
+    style TKB fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#075985
+    style GV_Thay fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
 ```
 
 ---
 
-#### 🔸 Luồng A: Quy trình Điểm danh Đầu giờ & Xử lý Bán trú 3 Pha
+#### 📌 SƠ ĐỒ 3: LUỒNG ĐIỂM DANH & BÁN TRÚ 3 PHA TRONG NGÀY
+*(Kết nối dữ liệu các điểm lẻ về trường chính trong 45 phút đầu giờ)*
+
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor GV as GVCN Lớp (Điểm lẻ)
-    actor PHT as Phó HT Điểm trường
-    actor KT as Kế toán Bán trú
-    actor HT as Hiệu trưởng
-    participant Sys as Hệ thống Supabase DB
+graph LR
+    %% 3 Pha tuyến tính
+    subgraph P1 ["PHA 1 (06:45 - 07:15)"]
+        G1["<b>Giáo viên điểm danh</b><br/>Có mặt / Vắng / Suất ăn"]
+    end
 
-    Note over GV,Sys: PHA 1 (06:45 - 07:15): Thu nhận dữ liệu hiện trường
-    GV->>Sys: Điểm danh: Có mặt / Vắng phép / Vắng không phép / Đăng ký ăn trưa
-    Sys->>PHT: Bắn thông báo Snapshot chuyên cần phân hiệu
-    PHT->>GV: Nhắc nhở liên lạc phụ huynh các em vắng không phép
+    subgraph P2 ["PHA 2 (07:15 - 07:30)"]
+        G2["<b>Phó HT & Kế toán</b><br/>Chốt tổng số suất ăn 6 điểm"]
+    end
 
-    Note over PHT,KT: PHA 2 (07:15 - 07:30): Chốt dữ liệu điều hành & Suất ăn
-    PHT->>Sys: Xác nhận sĩ số & số lượng bán trú phân hiệu
-    Sys->>KT: Tự động gom dữ liệu cả 6 điểm trường
-    KT->>KT: Kết xuất phiếu báo suất ăn cho nhà bếp bán trú lúc 07:30
+    subgraph P3 ["PHA 3 (07:30 - 08:00)"]
+        G3["<b>Hiệu trưởng điều hành</b><br/>Xem tỷ lệ chuyên cần toàn trường"]
+    end
 
-    Note over HT,Sys: PHA 3 (07:30 - 08:00): Ban Giám hiệu kiểm soát toàn trường
-    HT->>Sys: Mở Daily Summary Dashboard
-    Sys-->>HT: Báo cáo tỷ lệ chuyên cần toàn trường & biểu đồ cảnh báo điểm nóng
+    G1 -->|"Đồng bộ thời gian thực"| G2
+    G2 -->|"Xuất phiếu báo bếp"| Bep["<b>🍲 Nhà bếp bán trú</b><br/>Nấu đúng số suất ăn"]
+    G2 -->|"Đẩy lên Dashboard"| G3
+
+    style P1 fill:#eff6ff,stroke:#3b82f6,stroke-width:2px
+    style P2 fill:#fffbeb,stroke:#f59e0b,stroke-width:2px
+    style P3 fill:#f0fdf4,stroke:#22c55e,stroke-width:2px
+    style Bep fill:#fef2f2,stroke:#ef4444,stroke-width:2px
 ```
 
 ---
 
-#### 🔸 Luồng B: Quy trình Báo Vắng Đột Xuất & Điều Phối Dạy Thay Tức Thì
-```mermaid
-sequenceDiagram
-    autonumber
-    actor GVA as GV A (Báo ốm)
-    actor GVB as GV B (Dạy thay)
-    participant Sys as Hệ thống AI Engine
-    actor PHT as Phó Hiệu trưởng Điểm
-    actor HT as Hiệu trưởng
+### 🔐 3.3. Sơ Đồ Bảo Mật: Cô Lập Tài Khoản & Phân Quyền Điểm Trường
 
-    GVA->>Sys: Gửi yêu cầu "Báo nghỉ đột xuất" tiết 2
-    Sys->>Sys: Kích hoạt CSP Engine + Ma trận Km địa lý
-    Sys->>Sys: Lọc GV cùng môn Toán, có tiết trống, gần nhất
-    Sys-->>PHT: Đề xuất: "GV B tại điểm Trung tâm (cách 3.5km) dạy thay"
-    PHT->>HT: Chuyển tờ trình phân công khẩn cấp
-    HT->>Sys: Bấm "Phê duyệt điều chuyển" (1 click)
-    Sys->>Sys: Cập nhật Thời khóa biểu điện tử tức thì
-    Sys-->>GVB: Gửi thông báo SMS & Push Notification lệnh dạy thay
-    Sys-->>GVA: Thông báo đã bố trí người dạy thay thành công
-```
-
----
-
-#### 🔸 Luồng C: Máy Trạng Thái Khóa Dữ Liệu 6 Cấp (Data Locking State Machine)
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT: Giáo viên bộ môn nhập điểm ban đầu
-    DRAFT --> SUBMITTED: Giáo viên rà soát & bấm "Nộp bảng điểm"
-    SUBMITTED --> CAMPUS_CONFIRMED: Tổ trưởng (SUBJECT_HEAD) thẩm định ma trận & ký duyệt
-    CAMPUS_CONFIRMED --> VP_REVIEWED: Phó Hiệu trưởng (VICE_PRINCIPAL) duyệt học vụ phân hiệu
-    VP_REVIEWED --> PRINCIPAL_APPROVED: Hiệu trưởng (ADMIN) ký duyệt toàn trường
-    PRINCIPAL_APPROVED --> LOCKED: Kích hoạt lockDataRecord() ➔ ĐÓNG BĂNG VĨNH VIỄN CSDL
-
-    state LOCKED {
-        [*] --> ImmutableMode: Cấm UPDATE / Cấm DELETE
-        ImmutableMode --> PublicToParent: Mở sổ liên lạc điện tử cho Phụ huynh & Học sinh tra cứu
-    }
-
-    LOCKED --> UNLOCK_REQUESTED: Có đơn phúc khảo điểm (Bắt buộc tạo Unlock Request)
-    UNLOCK_REQUESTED --> LOCKED: Hiệu trưởng từ chối mở khóa
-    UNLOCK_REQUESTED --> DRAFT: Hiệu trưởng phê duyệt mở khóa ➔ Ghi vết vĩnh viễn vào AuditLog
-```
-
----
-
-#### 🔸 Luồng D: Quy trình BGH Tương Tác Với Trợ Lý AI Điều Hành (Principal AI)
-1. **Hiệu trưởng (`ADMIN`)**: Nhập câu hỏi điều hành (Ví dụ: *"Đánh giá tình hình chuyên cần tháng 10 và đề xuất giải pháp cho điểm An Tiến"*).
-2. **AI Data Engine**: Truy vấn CSDL thật của Supabase, gom số liệu điểm An Tiến kèm các đính chính trong bộ nhớ `AiFeedback`.
-3. **Mô hình AI**: Phân tích và sinh văn bản tư vấn kèm các phương án hành động.
-4. **Chốt chặn Decision Gate**: Kiểm tra xem số liệu AI nói có trùng khớp với CSDL không:
-   - Nếu số liệu khớp: Hiển thị cờ `VERIFIED`, nút **"Phê duyệt & Ký lưu"** mở sáng màu xanh.
-   - Nếu phát hiện AI bịa số liệu: Hiển thị cờ `HALLUCINATED`, **KHÓA CỨNG NÚT LƯU**, bảo vệ Hiệu trưởng không ra quyết định sai lầm.
-5. **Hiệu trưởng duyệt**: Quyết định được lưu vào sổ điều hành và gửi chỉ đạo xuống các Phó Hiệu trưởng và Giáo viên liên quan.
-
----
-
-### 🔐 3.3. Sơ Đồ Logic Bảo Mật & Cô Lập Đa Điểm Trường (Campus Scoping Flowchart)
+Sơ đồ phân nhánh rõ ràng giải thích **cách hệ thống chặn đứng mọi hành vi truy cập trái phép**:
 
 ```mermaid
 flowchart TD
-    Req([1. Client gửi HTTP Request / Server Action]) --> AuthMid{2. NextAuth Middleware & Token Decode}
+    User([👤 Người dùng gửi yêu cầu truy cập]) --> CheckLogin{Đã đăng nhập?}
+
+    CheckLogin -- "❌ Chưa" --> Login[Chuyển hướng về trang Đăng nhập]
+    CheckLogin -- "✅ Đã đăng nhập" --> RoleCheck{Vai trò của bạn là gì?}
+
+    %% Nhánh Super Admin
+    RoleCheck -- "SUPER_ADMIN" --> AccessPII{Vào xem Điểm / Học bạ?}
+    AccessPII -- "Cố tình vào" --> BlockSuper["🚫 CHẶN LỖI 403 FORBIDDEN<br/>(Bảo vệ quyền riêng tư PII)"]
+    AccessPII -- "Vào xem Máy chủ" --> OK_Infra["✅ Cho phép cấu hình hạ tầng"]
+
+    %% Nhánh Hiệu trưởng
+    RoleCheck -- "ADMIN (Hiệu trưởng)" --> OK_All["✅ TOÀN QUYỀN TRUY CẬP<br/>Xem & duyệt cả 6 điểm trường"]
+
+    %% Nhánh Phó Hiệu trưởng
+    RoleCheck -- "VICE_PRINCIPAL (Phó HT)" --> CheckCampus{Đúng điểm trường phụ trách?}
+    CheckCampus -- "❌ Xem chéo điểm khác" --> BlockCross["🚫 CHẶN LỖI 403 FORBIDDEN<br/>(Không được xem điểm trường khác)"]
+    CheckCampus -- "✅ Đúng điểm trường" --> OK_Campus["✅ Cho phép quản trị điểm mình phụ trách"]
+
+    %% Nhánh Giáo viên
+    RoleCheck -- "TEACHER (Giáo viên)" --> OK_Teacher["✅ Chỉ xem và quản lý lớp được phân công"]
+
+    %% Định dạng màu sắc
+    style BlockSuper fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
+    style BlockCross fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#991b1b
+    style OK_All fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
+    style OK_Campus fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#075985
+    style OK_Teacher fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#5b21b6
+    style OK_Infra fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
+```
+
+---
+
+### 🤖 3.4. Sơ Đồ Chốt Chặn Quyết Định AI (Decision Gate 3 Mức)
+
+Cách AI phối hợp với CSDL thật, hiển thị **3 màu trạng thái rõ ràng**:
+
+```mermaid
+flowchart TD
+    Q[Hiệu trưởng đặt câu hỏi điều hành] 
+    --> AI[Mô hình AI đọc CSDL & đưa ra lời khuyên]
+    --> Gate{Chốt chặn verifyAIGrounding kiểm định số liệu với CSDL}
+
+    Gate -- "🟢 Số liệu khớp 100% CSDL" --> StateGreen["<b>TRẠNG THÁI: VERIFIED</b><br/>Mở nút xanh: 'Phê duyệt & Ký lưu'<br/>Hiệu trưởng ký duyệt 1 click"]
     
-    AuthMid -- "Không có Session / Hết hạn" --> Err401[Ném lỗi 401 Unauthorized ➔ Redirect Login]
-    AuthMid -- "Hợp lệ" --> GetCtx[3. Gọi getTenantContext]
+    Gate -- "🟡 CSDL chưa có dữ liệu kiểm chứng" --> StateYellow["<b>TRẠNG THÁI: INSUFFICIENT_DATA</b><br/>Nút màu hổ phách: 'Thẩm định thực tế'<br/>Yêu cầu BGH kiểm tra trực tiếp"]
     
-    GetCtx --> CheckApproved{4. isApproved === false?}
-    CheckApproved -- "Đúng (Chưa duyệt)" --> BlockUnapproved[Gán schoolId: unapproved-no-access-000 ➔ CSDL rỗng]
-    
-    CheckApproved -- "Đã duyệt" --> RoleBranch{5. Phân nhánh theo UserRole}
-    
-    RoleBranch -- "SUPER_ADMIN" --> CheckSuperAdmin{Truy cập Học bạ / Điểm số PII?}
-    CheckSuperAdmin -- "Có" --> BlockSuper[assertNotSuperAdmin ➔ Chặn lỗi HTTP 403 Forbidden]
-    CheckSuperAdmin -- "Không" --> QueryInfra[Được xem cấu hình hạ tầng]
-    
-    RoleBranch -- "ADMIN (Hiệu trưởng)" --> AdminFull[isPrincipal = true ➔ Xem toàn bộ 6 Điểm trường]
-    
-    RoleBranch -- "VICE_PRINCIPAL (Phó HT)" --> CheckCampus{targetCampusId === session.campusId?}
-    CheckCampus -- "Sai (Xem chéo điểm khác)" --> BlockCross[assertCampusAccess ➔ Chặn lỗi HTTP 403 Forbidden]
-    CheckCampus -- "Đúng" --> ScopedQuery[Ép WHERE campusId = session.campusId]
-    
-    RoleBranch -- "TEACHER / STUDENT" --> ScopedUser[Ép WHERE classId / studentId tương ứng]
-    
-    AdminFull --> PrismaQuery[(6. Truy vấn Supabase PostgreSQL)]
-    ScopedQuery --> PrismaQuery
-    ScopedUser --> PrismaQuery
-    QueryInfra --> PrismaQuery
-    
-    PrismaQuery --> Resp([7. Trả dữ liệu an toàn về Client])
+    Gate -- "🔴 AI bịa đặt / Sai lệch số liệu" --> StateRed["<b>TRẠNG THÁI: HALLUCINATED</b><br/>🔒 KHÓA CỨNG NÚT LƯU (Disabled 100%)<br/>Cấm lưu quyết định sai lầm vào hệ thống"]
+
+    style StateGreen fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#166534
+    style StateYellow fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e
+    style StateRed fill:#fee2e2,stroke:#dc2626,stroke-width:3px,color:#991b1b
 ```
 
 1. **Cơ chế Phân bổ Điểm trường Chặt chẽ (Campus Scoping Logic)**:
